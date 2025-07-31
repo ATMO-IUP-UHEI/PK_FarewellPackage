@@ -1,0 +1,34 @@
+# config file for inversion run
+
+# define time range
+start_date: "2009-10-01"
+end_date: "2011-03-31"
+
+output_dir: "/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/inversions/"
+
+res_list: [2]       # spatial resolution
+corr_list: ['with']   # with/ no correlation
+# list of measurement errors
+gosat_meas_err_list: [1]
+meas_err_list: [2]
+# list of footprints
+f_list: ['spec001_mr_scaled']   # 'spec001_mr' for unscaled footprints
+# dataset used for the background
+# bg_ds: "IS"
+bg_ds: "RemoTeC_2.4.0+IS"
+
+WITH_FLAT: False # if True, runs additional inversion with flat prior
+SAVE_AK: False    # saves entire averaging kernel and posterior convariance matrix if set to True, just diagonal otherwise
+
+# TODO delete this?
+FILTER_GOSAT_MEAS: False    # set to True, if only use Gosat meas if there are more then x duing a week (not used in final inversion setup)
+# MIN_NUM_GOSAT_MEAS: 3
+
+SMALER_MEAS_AREA: False       # only include measurements for a smaller area (not used in final inversion setup)
+# if True define interp_region
+# interp_region: [20,48,-126,-70]       # lat_min, lat_max, lon_min, lon_max
+
+# TODO delete this?
+WITH_OFFSET: False          # add offset to inversion, for different diurnal cycle scaling approach
+WITH_GAMMA_OFFSET: False
+# x_offset: 6.e-7       # need decimal point to ensure its processed as a float

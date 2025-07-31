@@ -1,0 +1,30 @@
+# Total column release specification
+
+# Path to options dummy directory
+options_dummy_path: '/work/bb1170/RUN/b382762/FarewellPackage/software/flexpart_v11_start_multiple/configs/options_dummy'
+# Path to output directory, will create subdirectory for each release day
+output_path: "/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/RemoTeCv240/" # if change RemoTeCv240 name here, need to adapt that in following steps
+# Path to directory of ERA5 input files
+input_paths: '/work/bb1170/RUN/b382762/data/ERA5_daten/northAmericaLat4_64Lon-142_-54/2010/'
+# Path to AVALILABLE file for data
+available_paths: '/work/bb1170/RUN/b382762/data/ERA5_daten/northAmericaLat4_64Lon-142_-54/2010/AVAILABLE'
+
+# Run specifications for total column release
+part_init_config_path: /work/bb1170/RUN/b382762/software/flexpart_v11/start_multiple/configs/part_init_config.yaml
+# Simulation time in days
+sim_length: 10
+
+# path to directory containing satelites position.csv with subdirectories %Y_%m
+satellites_position_path: '/work/bb1170/RUN/b382762/data/FarewellPackage_test/GOSAT/'   # if used release_ids and sim_start will be ignored
+startdate: '20100601' # TODO schönere implementierung, gerade sehr umständlich
+enddate: '20100610'
+# number of pathnames_directories
+num_pathnames_dir: 2
+
+# these params will be ignored if satellites_position_path is given
+release_ids: [1,2,3]
+num_releases: 2       #number of releases/measurements to be written in one part_init.nc file (one file =one flexpart run), integer if same for all measurements, otherwise list of integers with same length as release ids
+latitude: [[20,30],[50,35],[40,40]]   # this would create files/directories for three FLEXPART runs with two total column releases each
+longitude: [[-120,-100],[-95,-120],[-103,-80]]
+sim_start: [['20200905','000000'],['20200904','080000'],['20201005','080000']]   # list of [startdate, starttime] as strings for each release
+release_time: [[0,200],[39,234], [20,40]]   # in seconds after start of simulation

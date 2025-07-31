@@ -1,0 +1,26 @@
+# Config for script to write part_init.nc file to use as userdefined initial conditions for FLEXPART_v11
+
+# header info
+nspecies: 1  # integer
+species_id: 41  # CO2; 1D-array of integers
+kindz:  1    # integer: 1=above ground, 2=above sea level, 3 for pressure in hPa
+
+# number of particles that should be released per measurement
+num_part: 40000
+num_layers: 1      # number of layers to split release into
+num_releases: 1       #number of releases/measurements to be written in one part_init.nc file, will be overwritten if positions read from satellight_sounding.csv
+# particles equally dirtributed in pressure
+pmin: 100 #hPa
+pmax: 1013.25   #hPa    p0=1013.25hPa in barometric height formula calculation in create_part_init.py
+
+# mass of species
+species_mass: 44
+
+# params that will be ignored if positions when used with create_options_pathnames.py
+outpath: /work/bb1170/RUN/b382762/data/Flexpart_output/test/
+# for total column release
+lat: [34.1362305 ]
+lon: [-118.126900]
+# Release time of each particle seconds after simulation start (IBDATE/IBTIME for forward runs, IEDATE/IETIME for backward runs, set in COMMAND)
+release_time: [20]
+

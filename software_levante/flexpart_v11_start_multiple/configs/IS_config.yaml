@@ -1,0 +1,8 @@
+# path to .nc file containing obspack insitu data
+path: '/work/bb1170/RUN/b382762/data/ObsPack/test/test_lat12_56_lon-134_-62sel_mean_combined.nc'
+
+# output directory for ISpositions.csv files
+outdir: '/work/bb1170/RUN/b382762/data/FarewellPackage_test/ObsPack/'
+startdate:  '20100601'  # start date in format: yyyymmdd
+enddate:    '20100610'  # end date in format: yyyymmdd
+

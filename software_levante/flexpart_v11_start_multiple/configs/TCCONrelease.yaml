@@ -1,0 +1,31 @@
+# for header
+species: 41
+
+# time settings
+times_from_file: false
+times_file_path: ""
+times: [["20200907", "000000", "20200907", "235959"], ["20200908", "000000", "20200908", "235959"],["20200909", "000000", "20200909", "235959"]] # will be ignored if read_from_file: true
+
+# for edwards: ["20200915", "000000", "20200915", "235959"], ["20200916", "000000", "20200916", "235959"],["20200917", "000000", "20200917", "235959"]
+
+# for height profile
+column_mode: "unit" # "pressure_pure" "pressure_wu"
+height_low: 0
+height_up: 21 # in km
+dh: 500 # in meters
+n_total: 40000
+discrete: false
+
+# positions of stations
+coords_from_file: false
+coords_file_path: ""
+#                                                 
+coords: [[-118.126897,-118.126897,34.13623,34.13623],[-118.126897,-118.126897,34.13623,34.13623],[-118.126897,-118.126897,34.13623,34.13623]] # will be ignored if read_from_file: true
+
+# TCCOn stations
+# Edwards: [-117.881069,-117.881069,34.959917,34.959917]
+# Pasadena: [-118.126897,-118.126897,34.13623,34.13623]
+
+# other settings
+zkind: 1
+mass: 1.0

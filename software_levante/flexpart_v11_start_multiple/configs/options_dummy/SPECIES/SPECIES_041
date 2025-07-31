@@ -1,0 +1,4 @@
+&SPECIES_PARAMS
+ PSPECIES="CO2",              ! Tracer name
+ PWEIGHTMOLAR=44.0,           ! molweight
+ /

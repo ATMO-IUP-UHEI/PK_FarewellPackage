@@ -1,0 +1,18 @@
+# path to directory containing the GOSAT files
+GOSAT_dir: '/work/bb1170/RUN/b382762/data/GOSAT/GOSAT_RemoTeCv2.4.0/'
+RemoTeC_version: '2.4.0'  # select RemoTeC_version, 2.4.0 or 2.4.1
+
+# region for which GOSAT measurements should be used
+# flexpart_region=[12,56,-134,-62]       # lat_min, lat_max, lon_min, lon_max
+
+Lat_min: 12
+Lat_max: 56
+Long_min: -134
+Long_max: -62
+
+# optional
+# output directory for gosat.csv files, if None, will be placed in GOSAT_dir
+outdir: '/work/bb1170/RUN/b382762/data/FarewellPackage_test/GOSAT/'
+startdate:  '20100601'  # start date in format: yyyymmdd
+enddate:    '20100610'  # end date in format: yyyymmdd
+

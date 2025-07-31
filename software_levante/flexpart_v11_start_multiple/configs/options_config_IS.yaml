@@ -1,0 +1,22 @@
+# In-situ release specifications
+
+# Path to options dummy directory
+options_dummy_path: '/work/bb1170/RUN/b382762/FarewellPackage/software/flexpart_v11_start_multiple/configs/options_dummy'
+# Path to output directory, will create subdirectory for each release day
+output_path: "/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/insitu/"
+# Path to directory of ERA5 input files
+input_paths: '/work/bb1170/RUN/b382762/data/ERA5_daten/northAmericaLat4_64Lon-142_-54/2010/'
+# Path to AVALILABLE file for data
+available_paths: '/work/bb1170/RUN/b382762/data/ERA5_daten/northAmericaLat4_64Lon-142_-54/2010/AVAILABLE'
+
+# Run specifications for release
+part_init_config_path: /work/bb1170/RUN/b382762/software/flexpart_v11/start_multiple/configs/part_init_config.yaml
+# Simulation time in days
+sim_length: 10
+
+# path to directory containing in-situ position.csv with subdirectories %Y_%m
+IS_positions_dir: "/work/bb1170/RUN/b382762/data/FarewellPackage_test/ObsPack/"
+startdate: '20100601'
+enddate: '20100610'
+# number of pathnames_directories
+num_pathnames_dir: 2
