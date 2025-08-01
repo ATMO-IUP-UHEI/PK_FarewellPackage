@@ -1,15 +1,21 @@
 [tool.poetry]
-name = "metviewpythonpackage"
+name = "convert_era5"
 version = "0.1.0"
-description = ""
-authors = ["Pernilla Kühn, Eva Metz"]
+description = "Convert ERA5 spherical data on levante"
+authors = ["Eva Metz, Pernilla Kühn"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.12"
 metview = "^1.16.0"
 pandas = "^2.2.2"
+numpy = "^2.3.2"
+click = "^8.2.1"
+pyyaml = "^6.0.2"
+python-dateutil = "^2.9.0.post0"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
 
 [build-system]
 requires = ["poetry-core"]

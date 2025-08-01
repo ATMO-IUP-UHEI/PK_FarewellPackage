@@ -1,0 +1,37 @@
+# Config for script to automate conversion of ERA5 spectral files (into flex_extract download files )
+
+# Start date in format yyyymmdd.
+startdate: '20100920'
+# Stop date in format yyyymmdd.
+stopdate: '20101219'
+# Path to output folder
+outpath: /work/bb1170/RUN/b382762/data/ERA5_daten/test_2010/temp/
+
+# time resolution '1H', '1D', '1M', 'IV' 
+timeres: '1H'
+# spatial resolution as float
+res: 0.28125
+# borders as list: lat_min, long_min, lat_max, long_max
+# flexpart_region=[6,62,-140,-56]       # lat_min, lat_max, lon_min, lon_max
+#  +-2
+borders: [4,-142, 64.1875, -53.96875]
+
+# for individual parameter conversion:
+# list of parameters that should be downloaded
+param_list: []
+data_type:        # an = analysis, fc = forecast
+data_level:         # sf = surface, ml = model levels, pl = pressure levels
+
+# for usage with FLEX_EXTRACT
+flex_extract: True # set to true to download flex_extract files
+# List of Flex_extract file name(s) which should be created, if none provided all flex_extract files will be created
+# ['ANOG__ML', 'ANOG__SL', 'ANSH__SL','FCOG_acc_SL','OG_OROLSM__SL']
+fe_files:
+# ID for this run in format XXX, needed if the script is run multiple times in parallel
+idnum:
+
+# optional for FLEXPART preprocessing, create CONTROL file
+# control dummy path
+control_dummy_path: '/work/bb1170/RUN/b382762/FarewellPackage/convertERA5/convertERA5/config/CONTROL_EA5_dummy'
+# control outpath
+control_outpath: '/work/bb1170/RUN/b382762/data/ERA5_daten/test_2010/'

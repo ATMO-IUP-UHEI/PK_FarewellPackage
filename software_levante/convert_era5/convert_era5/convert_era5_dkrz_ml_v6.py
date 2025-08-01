@@ -19,7 +19,7 @@ from os.path import isfile, join
 
 ###################################################
 # run this script e.g. with 
-# python convert_era5_dkrz_ml_v5.py --config_path config/config_convert_era5.yaml
+# python convert_era5_dkrz_ml_v6.py --config_path config/config_convert_era5.yaml
 ###################################################
 
 
@@ -27,7 +27,7 @@ from os.path import isfile, join
 @click.command()
 @click.option("--config_path", required=True, help="path to config.yaml file")
 def main(config_path):
-    ymdi, ymdf, outpath, res, borders,parameter_list, dlevel,dtype,timeres,flex_extract_download, fe_files, idnum = read_config(config_path)
+    ymdi, ymdf, outpath, res, borders,parameter_list, dlevel,dtype,timeres,flex_extract_download, fe_files, idnum, control_dummy_path, control_outpath = read_config(config_path)
     # print('started main, read config')
     if flex_extract_download:
         # read paths and params from csv file
@@ -39,7 +39,7 @@ def main(config_path):
         processID = int(time.time()) # needed for ANOG__ML conversion
         print('process ID = '+str(processID))
 
-        if fe_files is None:
+        if (fe_files is None) or (fe_files==[]):
             print('no files given, processing all files')
             fe_files = ['ANOG__ML', 'ANOG__SL', 'ANSH__SL','FCOG_acc_SL','OG_OROLSM__SL']
         else:#check that all given file names are valid
@@ -67,10 +67,12 @@ def main(config_path):
                     rerunFailedANOG__ML(restart_dir,restart_files)
                     Wait_for_Jobs(processID, 'restarted ANOG__ML')
                     restart_files=[f for f in listdir(restart_dir) if isfile(join(restart_dir, f)) if f.startswith('restart_')]
+                # remove empty directory
+                os.rmdir(restart_dir)
             # for FCOG files, adjust time and step for first day of the month
             if 'FCOG' in fe_file:
                 file_name = dfFiles[(dfFiles.fefile == fe_file)].levanteFile.values[0]
-                timerange = range(-1,(ymdf-ymdi).days+3)
+                timerange = range(-1,(ymdf-ymdi).days+2)
                 for day in timerange:
                     ymdn=ymdi+dt.timedelta(days=day)
                     # check if timeperiod contains first day of month
@@ -84,6 +86,9 @@ def main(config_path):
                         Wait_for_Jobs(processID, 'forecast fields')
             print('Merging '+fe_file)
             Merge3Days(ymdi, ymdf, outpath, fe_file,dfFiles)
+        if not control_dummy_path is None:
+            print(f'writing CONTROL file: {control_outpath}')
+            writeCONTROL(ymdi, ymdf, res, borders, control_dummy_path, control_outpath)
     else:
         print('reading config/param_files.csv')
         # read paths and params from csv file
@@ -367,6 +372,32 @@ def rerunFailedANOG__ML(restart_dir,restart_files):
     print('Restarted all, waiting 5 minutes')
     time.sleep(300) # wait five minutes
 
+def writeCONTROL(ymdi, ymdf, res, borders, control_dummy_path, control_outpath):
+    '''Writes CONTROL file (needed for prepare_flexpart.py) based on info in config file, other parameters have to be adjusted manually in CONTROLdummy file'''
+    with open(control_dummy_path, "r") as f:
+        con_file = ""
+        for line in f:
+            addition = line
+            if line.startswith('START_DATE'):
+                addition = f"START_DATE {ymdi.strftime('%Y%m%d')}\n"
+            if line.startswith('END_DATE'):
+                addition = f"END_DATE {ymdf.strftime('%Y%m%d')}\n"
+            if line.startswith('GRID'):
+                addition = f"GRID {res}\n"
+            if line.startswith('LEFT'):
+                addition = f"LEFT {borders[1]}\n"
+            if line.startswith('LOWER'):
+                addition = f"LOWER {borders[0]}\n"
+            if line.startswith('RIGHT'):
+                addition = f"RIGHT {borders[3]}\n"
+            if line.startswith('UPPER'):
+                addition = f"UPPER {borders[2]}\n"
+            con_file = con_file + addition
+    # print(com_file)
+    with open(os.path.join(control_outpath, "CONTROL"), "w") as f:
+        f.write(con_file)
+
+
 def read_config(config_path):
     with open(config_path, 'r') as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)
@@ -387,7 +418,7 @@ def read_config(config_path):
         
         
         
-        return (dt.date(yi,mi,di), dt.date(yf,mf,df), config['outpath'], config['res'], config['borders'], config['param_list'], [config['data_level']],[config['data_type']],config['timeres'],config['flex_extract'], config['fe_files'], config['idnum'])
+        return (dt.date(yi,mi,di), dt.date(yf,mf,df), config['outpath'], config['res'], config['borders'], config['param_list'], [config['data_level']],[config['data_type']],config['timeres'],config['flex_extract'], config['fe_files'], config['idnum'], config['control_dummy_path'], config['control_outpath'])
 
 #########################################################################################
 

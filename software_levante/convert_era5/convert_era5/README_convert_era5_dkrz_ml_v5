@@ -1,4 +1,4 @@
-Created by Eva-Marie Metz 23.04.2024
+Created by Eva-Marie Metz 23.04.2024 for version convert_era5_dkrz_ml_v5.py
 
 Program to convert ERA5 spherical data on levante to files usable by Flexextract and FLEXPART. It replaces the download of ERA5 data performed with flex_extract via the command get_mars_data. THe output data needs to be preprocessed with the prepare_flexpart script of felx_extract.
 

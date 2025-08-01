@@ -6,8 +6,8 @@
 #SBATCH --time=03:00:00        # Set a limit on the total run time
 #SBATCH --mail-type=FAIL       # Notify user by email in case of job failure
 #SBATCH --account=bb1170       # Charge resources on this project account
-#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/northAmerica/2010_01_v6_shifted_FCOGtest/new/slurm/adjust_FCOG.o%j    # File name for standard output
-#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/northAmerica/2010_01_v6_shifted_FCOGtest/new/slurm/adjust_FCOG.e%j     # File name for standard error output
+#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/adjust_FCOG/adjust_FCOG.o%j    # File name for standard output
+#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/adjust_FCOG/adjust_FCOG.e%j     # File name for standard error output
 
 # run this script for a single file with sbatch adjust_fc_file.sh and paths:
 #-fc_file: absolute path to forecast file: 

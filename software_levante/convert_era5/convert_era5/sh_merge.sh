@@ -6,8 +6,8 @@
 #SBATCH --time=03:00:00        # Set a limit on the total run time
 #SBATCH --mail-type=FAIL       # Notify user by email in case of job failure
 #SBATCH --account=bb1170       # Charge resources on this project account
-#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/northAmerica/slurm_erroroutput_v6/merge.o%j    # File name for standard output
-#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/northAmerica/slurm_erroroutput_v6/merge.e%j     # File name for standard error output
+#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/merge/merge.o%j    # File name for standard output
+#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/merge/merge.e%j     # File name for standard error output
 
 
 ulimit -S -s 102400
@@ -23,15 +23,3 @@ do
     rm $singlefile
     # echo removing $singlefile
 done
-
-# not used anymore, needed for grib2 convertion
-#if [[ $filelist == *"FCOG_acc_"* ]]
-#then
-#    echo deleting extra files
-#    for singlefile in $filelist
-#    do
-#        singlefile2=$( echo $singlefile | cut -f1 -d'.')
-#        rm ${singlefile2}.grib2
-#        rm ${singlefile2}0.grib2
-#    done
-#fi

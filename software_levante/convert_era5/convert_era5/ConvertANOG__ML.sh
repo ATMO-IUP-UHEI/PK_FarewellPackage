@@ -6,8 +6,8 @@
 #SBATCH --time=03:00:00        # Set a limit on the total run time
 #SBATCH --mail-type=FAIL       # Notify user by email in case of job failure
 #SBATCH --account=bb1170       # Charge resources on this project account
-#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/northAmerica/slurm_erroroutput_v6/ANOG.o%j    # File name for standard output
-#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/northAmerica/slurm_erroroutput_v6/ANOG.e%j     # File name for standard error output
+#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/ANOG/ANOG.o%j    # File name for standard output
+#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/ANOG/ANOG.e%j     # File name for standard error output
 
 #this script is part of convert_era5_dkrz_ml_v5.py
 #conda deactivate

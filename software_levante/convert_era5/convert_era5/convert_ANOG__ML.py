@@ -30,17 +30,27 @@ def parse_arguments_ANOG():
     
     return filepath, res, inter_res, borders, outfile, parID
 
-filepath, res, inter_res, borders, outfile, parID = parse_arguments_ANOG()
+def convert_anog_ml(filepath, res, inter_res, borders, outfile, parID):
+    datagrb = mv.read(filepath)
+    
+    datagrb_interp = mv.read(data=datagrb,    
+                            grid=[str(res),str(res)],
+                            resol=inter_res,
+                            accuracy=24,
+                            interpolation='linear',
+                            area=borders)
 
-print('create ' + outfile + '_' + str(parID)+'.grb' + ' in background')
+    mv.write(outfile + '_' + str(parID)+'.grb', datagrb_interp)
 
-datagrb = mv.read(filepath)
 
-datagrb_interp = mv.read(data=datagrb,    
-                        grid=[str(res),str(res)],
-                        resol=inter_res,
-                        accuracy=24,
-                        interpolation='linear',
-                        area=borders)
+def main():
+    filepath, res, inter_res, borders, outfile, parID = parse_arguments_ANOG()
+    print('create ' + outfile + '_' + str(parID)+'.grb' + ' in background')
+    convert_anog_ml(filepath, res, inter_res, borders, outfile, parID)
+    
 
-mv.write(outfile + '_' + str(parID)+'.grb', datagrb_interp)
+
+
+##########################################################################################################
+if __name__ == "__main__":
+    main()
