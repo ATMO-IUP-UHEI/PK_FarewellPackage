@@ -1,0 +1,21 @@
+# Config for script to automate conversion of ERA5 spectral files (into flex_extract download files )
+
+# Start date in format yyyymmdd.
+startdate: '20200901'
+# Stop date in format yyyymmdd.
+stopdate: '20200902'
+# Path to output folder
+outpath: //work/bb1170/RUN/b382762/data/Metview_test/240715/
+# spatial resolution as float
+res: 10.
+# borders as list: lat_min, long_min, lat_max, long_max
+borders: [-90, -170, 90, 180]
+
+# optional:
+# list of parameters that should be downloaded
+param_list: [152,60]
+flex_extract: False # set to true to doownload flex_extract files
+# Flex_extract file name(s) which should be created, if none provided all flex_extract files will be created
+fe_files: 
+# ID for this run in format XXX, needed if the script is run multiple times in parallel
+idnum:

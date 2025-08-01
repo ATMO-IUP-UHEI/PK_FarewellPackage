@@ -1,0 +1,2 @@
+metview>=5.21.1
+pandas>=1.4.0

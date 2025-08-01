@@ -1,0 +1,29 @@
+Created by Eva-Marie Metz 23.04.2024
+
+Program to convert ERA5 spherical data on levante to files usable by Flexextract and FLEXPART. It replaces the download of ERA5 data performed with flex_extract via the command get_mars_data. THe output data needs to be preprocessed with the prepare_flexpart script of felx_extract.
+
+The following scripts are part of the program:
+convert_era5_dkrz_ml_v5.py
+- Main script to convert data for each day ad parameter and to combine the daily data in the file format needed by flex_extract
+Start_ConvertEra5.sh
+- start main script with sbatch Start_ConvertEra5.sh
+sh_merge.sh
+- merges the individual files for each day and parameter together in 3-day files with all parameters of one type 
+convert_ANOG__ML.py
+- the data for the ANOG__ML file type of flex_extract is converted parallel in the background jobs. This script is used for the background jobs
+ConvertANOG__ML.sh
+- start the background jobs
+check_status.sh
+- check that all background jobs are completed before merging ANOG__ML files
+
+The following things have to be adapted before using the scripts:
+Start_ConvertEra5.sh:
+- adapt error and ouput filepath for the slurm jobs
+- adapt conda environment
+sh_merge.sh:
+- adapt error and ouput filepath for the slurm jobs
+ConvertANOG__ML.sh
+- adapt error and ouput filepath for the slurm jobs
+- adapt conda environment
+check_status.sh!!!
+-adapt userID
