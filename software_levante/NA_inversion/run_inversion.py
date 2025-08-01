@@ -10,7 +10,7 @@ from pyinverse.loss import Bayesian
 from pyinverse.solver import BayesianAnalytical
 from scipy import sparse
 from scipy.spatial.distance import pdist, squareform
-from utils import get_start_date_of_week, haversine
+from utils import get_start_date_of_week, haversine, get_unique_time
 import yaml
 import argparse
 
@@ -341,23 +341,6 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    # SMALER_MEAS_AREA=False  # if true, define area below
-    # WITH_FLAT=False         # if True, runs additional inversion with flat prior
-    # SAVE_AK=False    # set to True if temporal mean of AK and posterior cov should be saved
-    # FILTER_GOSAT_MEAS=False  # set to True, if only use Gosat meas if there are more then x duing a week
-    # # min_num_gosat_meas=3
-    # WITH_OFFSET=False
-    # # x_offset=5e-7
-    
-    # # start_date, end_date= dt.date(2010,1,1), dt.date(2010,12,31)
-    # start_date, end_date= dt.date(2009,10,1), dt.date(2011,3,31)
-    # # path to output directory
-    # output_dir=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/inversions/'
-    # # set value for gosat measurement error, list of insitu measurement errors
-    # gosat_meas_err_list=[0.5,0.8,1.2, 1.5,2]    #ppm
-    # meas_err_list=[2]              # [0.01, 0.1, 0.5, 1,2,5]     1,2,4,8,12,24,36,100
-    # # bg_ds='IS'      RemoTeC_2.4.0+IS
-    # bg_ds='RemoTeC_2.4.0+IS'
     
     # get config file path
     args = parse_args()
@@ -371,17 +354,15 @@ if __name__ == "__main__":
     for res in res_list:             # ,2, 4
         # paths that depend on res
         # old paths
-        # is_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/insitu/prep_footprints/high_res/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
-        # gosat_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/RemoTeCv240/prep_footprints/high_res/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         # for total scaling
-        is_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/insitu/prep_footprints/high_res/scaled_weekly_total/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
-        gosat_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/RemoTeCv240/prep_footprints/high_res/scaled_weekly_total/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
+        is_path=f'{output_dir}/insitu/{scaling_subdirectory}/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
+        gosat_path=f'{output_dir}/RemoTeCv240/{scaling_subdirectory}/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         if WITH_OFFSET:
-            is_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/insitu/prep_footprints/high_res/scaled_weekly_beta_prime/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
-            gosat_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/RemoTeCv240/prep_footprints/high_res/scaled_weekly_beta_prime/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
+            is_path=f'{output_dir}/insitu/prep_footprints/high_res/scaled_weekly_beta_prime/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
+            gosat_path=f'{output_dir}/RemoTeCv240/prep_footprints/high_res/scaled_weekly_beta_prime/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         if WITH_GAMMA_OFFSET:
-            is_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/insitu/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
-            gosat_path=f'/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/RemoTeCv240/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
+            is_path=f'{output_dir}/insitu/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
+            gosat_path=f'{output_dir}/RemoTeCv240/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         # read prior flux 
         flux_path=f'/work/bb1170/RUN/b382762/data/TM5Inversion/glb3x2_20220413_new_gridded_flux/flux_{res}x{res}_prior_cut.nc'
         # read data
@@ -454,7 +435,7 @@ if __name__ == "__main__":
         # run with / without covariance
         for corr_str in corr_list:     #, 'no'
             print(f'{corr_str} covariance')
-            cov_path=f'{output_dir}/{res}x{res}/{corr_str}_correlation/cov_{corr_str}_corr_{res}x{res}.nc'
+            cov_path=f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/cov_{corr_str}_corr_{res}x{res}.nc'
             if os.path.isfile(cov_path):
                 prior_cov=xr.open_dataarray(cov_path).values
                 print(f'read cov matrix from {cov_path}')
@@ -466,6 +447,8 @@ if __name__ == "__main__":
                     print('geting prior variance')
                     prior_cov = get_prior_var_no_correlation_from_weekly_prior(weekly_prior)
                 # save covariance matrix
+                if not os.path.isdir(f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/'):
+                    os.makedirs(f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/')
                 # create datarray
                 prior_cov_da = xr.DataArray(prior_cov, dims=['x', 'y'])
                 prior_cov_da.to_netcdf(cov_path)
@@ -485,7 +468,7 @@ if __name__ == "__main__":
                 footprints=footprints.stack(grid_box=("time","latitude", "longitude")).squeeze()
             
                 for gosat_meas_err in gosat_meas_err_list:
-                    sdir=f'{output_dir}/{res}x{res}/{corr_str}_correlation/footprint_{f_col}/{gosat_meas_err}ppm_gosat_meas_err/'
+                    sdir=f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/footprint_{f_col}/{gosat_meas_err}ppm_gosat_meas_err/'
                     if FILTER_GOSAT_MEAS:
                         sdir=sdir[:-1]+'_filtered/'
                     if WITH_OFFSET:
