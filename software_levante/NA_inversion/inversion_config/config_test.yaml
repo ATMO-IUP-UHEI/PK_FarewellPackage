@@ -1,19 +1,19 @@
 # config file for inversion run
 
 # define time range of measurements
-start_date: "2009-10-01"
-end_date: "2011-03-31"
+start_date: "2010-06-01"
+end_date: "2010-06-06"
 
-output_dir: "/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/"
+output_dir: "/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/"
 
 res_list: [2]       # spatial resolution in °, eg 2 for 2x2°
 corr_list: ['with']   # with/ no correlation
 # list of measurement errors
-gosat_meas_err_list: [1]
+gosat_meas_err_list: [1,2]
 meas_err_list: [2]
 # list of footprints
 f_list: ['spec001_mr_scaled']   # 'spec001_mr' for unscaled footprints
-scaling_subdirectory: "prep_footprints/high_res/scaled_weekly_total/"    # subdirectory in output_dir/insitu or output_dir/RemoTeCv240 directory where weekly footprint files are saved
+scaling_subdirectory: "prep_footprints/scaled_weekly/"    # subdirectory in output_dir/insitu or output_dir/RemoTeCv240 directory where weekly footprint files are saved
 
 # dataset used for the background
 # bg_ds: "IS"
