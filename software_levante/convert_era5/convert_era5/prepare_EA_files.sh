@@ -38,26 +38,26 @@ EAfileName="${EAfile:0-10}" #file name of the EA file is assumed to have 10 dige
 
 #select the individual messages in the correct order and save individually in temp files
 grib_copy -w levtype=ml $EAfile ${outfile}${EAfileName}tempfile1
-grib_copy -w parameterNumber=0,param=134,parameterCategory=3 $EAfile ${outfile}${EAfileName}tempfile2
-grib_copy -w parameterNumber=196,param=0,parameterCategory=1 $EAfile ${outfile}${EAfileName}tempfile3
-grib_copy -w parameterNumber=195,param=0,parameterCategory=1 $EAfile ${outfile}${EAfileName}tempfile4
-grib_copy -w parameterNumber=11,param=146,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile5
-grib_copy -w parameterNumber=62,param=0,parameterCategory=2 $EAfile ${outfile}${EAfileName}tempfile6
-grib_copy -w parameterNumber=63,param=0,parameterCategory=2 $EAfile ${outfile}${EAfileName}tempfile7
-grib_copy -w parameterNumber=9,param=176,parameterCategory=4 $EAfile ${outfile}${EAfileName}tempfile8
-grib_copy -w parameterNumber=254,param=141,parameterCategory=1 $EAfile ${outfile}${EAfileName}tempfile9
-grib_copy -w parameterNumber=0,param=151,parameterCategory=3 $EAfile ${outfile}${EAfileName}tempfile10
-grib_copy -w parameterNumber=192,param=0,parameterCategory=6 $EAfile ${outfile}${EAfileName}tempfile11
-grib_copy -w parameterNumber=2,param=165,parameterCategory=2 $EAfile ${outfile}${EAfileName}tempfile12
-grib_copy -w parameterNumber=3,param=166,parameterCategory=2 $EAfile ${outfile}${EAfileName}tempfile13
-grib_copy -w parameterNumber=0,param=167,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile14
-grib_copy -w parameterNumber=6,param=168,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile15
-grib_copy -w parameterNumber=4,param=129,parameterCategory=3 $EAfile ${outfile}${EAfileName}tempfile16
-grib_copy -w parameterNumber=0,param=172,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile17
-grib_copy -w parameterNumber=20,param=260085,parameterCategory=3 $EAfile ${outfile}${EAfileName}tempfile18
-grib_copy -w parameterNumber=53,param=0,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile19
-grib_copy -w parameterNumber=54,param=0,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile20
-grib_copy -w parameterNumber=1,param=173,parameterCategory=0 $EAfile ${outfile}${EAfileName}tempfile21
+grib_copy -w param=134 $EAfile ${outfile}${EAfileName}tempfile2
+grib_copy -w param=142 $EAfile ${outfile}${EAfileName}tempfile3
+grib_copy -w param=143 $EAfile ${outfile}${EAfileName}tempfile4
+grib_copy -w param=146 $EAfile ${outfile}${EAfileName}tempfile5
+grib_copy -w param=180 $EAfile ${outfile}${EAfileName}tempfile6
+grib_copy -w param=181 $EAfile ${outfile}${EAfileName}tempfile7
+grib_copy -w param=176 $EAfile ${outfile}${EAfileName}tempfile8
+grib_copy -w param=141 $EAfile ${outfile}${EAfileName}tempfile9
+grib_copy -w param=151 $EAfile ${outfile}${EAfileName}tempfile10
+grib_copy -w param=164 $EAfile ${outfile}${EAfileName}tempfile11
+grib_copy -w param=165 $EAfile ${outfile}${EAfileName}tempfile12
+grib_copy -w param=166 $EAfile ${outfile}${EAfileName}tempfile13
+grib_copy -w param=228004 $EAfile ${outfile}${EAfileName}tempfile14
+grib_copy -w param=168 $EAfile ${outfile}${EAfileName}tempfile15
+grib_copy -w param=129 $EAfile ${outfile}${EAfileName}tempfile16
+grib_copy -w param=172 $EAfile ${outfile}${EAfileName}tempfile17
+grib_copy -w param=160 $EAfile ${outfile}${EAfileName}tempfile18
+grib_copy -w param=27 $EAfile ${outfile}${EAfileName}tempfile19
+grib_copy -w param=28 $EAfile ${outfile}${EAfileName}tempfile20
+grib_copy -w param=244 $EAfile ${outfile}${EAfileName}tempfile21
 #merge all temp files in correct order
 grib_copy ${outfile}${EAfileName}tempfile1 ${outfile}${EAfileName}tempfile2 ${outfile}${EAfileName}tempfile3 ${outfile}${EAfileName}tempfile4 ${outfile}${EAfileName}tempfile5 ${outfile}${EAfileName}tempfile6 ${outfile}${EAfileName}tempfile7 ${outfile}${EAfileName}tempfile8 ${outfile}${EAfileName}tempfile9 ${outfile}${EAfileName}tempfile10 ${outfile}${EAfileName}tempfile11 ${outfile}${EAfileName}tempfile12 ${outfile}${EAfileName}tempfile13 ${outfile}${EAfileName}tempfile14 ${outfile}${EAfileName}tempfile15 ${outfile}${EAfileName}tempfile16 ${outfile}${EAfileName}tempfile17 ${outfile}${EAfileName}tempfile18 ${outfile}${EAfileName}tempfile19 ${outfile}${EAfileName}tempfile20 ${outfile}${EAfileName}tempfile21 $outfile${EAfileName}
 
