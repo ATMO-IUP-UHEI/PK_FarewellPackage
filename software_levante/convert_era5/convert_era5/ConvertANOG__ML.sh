@@ -6,8 +6,8 @@
 #SBATCH --time=03:00:00        # Set a limit on the total run time
 #SBATCH --mail-type=FAIL       # Notify user by email in case of job failure
 #SBATCH --account=bb1170       # Charge resources on this project account
-#SBATCH --output=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/ANOG/ANOG.o%j    # File name for standard output
-#SBATCH --error=/work/bb1170/RUN/b382762/data/ERA5_daten/convertERA5_test/slurm/ANOG/ANOG.e%j     # File name for standard error output
+#SBATCH --output=slurm/ANOG/ANOG.o%j    # File name for standard output
+#SBATCH --error=slurm/ANOG/ANOG.e%j     # File name for standard error output
 
 #this script is part of convert_era5_dkrz_ml_v5.py
 #conda deactivate
@@ -17,6 +17,7 @@ conda activate metview
   
 echo $CONDA_PREFIX
 
+export METVIEW_PYTHON_START_TIMEOUT=100         # gives the program a bit more time to find metview
 python convert_ANOG__ML.py $filepath $inter_res $outfile $par $resol $borders0 $borders1 $borders2 $borders3
 
 # delete restart file
