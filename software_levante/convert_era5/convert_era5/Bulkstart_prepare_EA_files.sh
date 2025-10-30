@@ -39,6 +39,6 @@ for EAfile in $EAfile_list
 do
 	echo reordering $EAfile
 
-	prepare_EA_files.sh $EAfile ${outfile}
+	sbatch prepare_EA_files.sh $EAfile ${outfile}
 	wait
 done
