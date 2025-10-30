@@ -14,7 +14,7 @@ res: 0.28125
 # borders as list: lat_min, long_min, lat_max, long_max
 # flexpart_region=[6,62,-140,-56]       # lat_min, lat_max, lon_min, lon_max
 #  +-2
-borders: [4,-142, 64.1875, -53.96875]
+borders: [4,-142, 64.1875, -53.96875]   # lat_min, lon_min, lat_max, lon_max
 
 # for individual parameter conversion:
 # list of parameters that should be downloaded
