@@ -305,7 +305,7 @@ def Merge3Days(ymdi, ymdf, outpath, fe_file,dfFiles):
     
     if 'FCOG' in fe_file: # FCOG files start one day before and extend to one day after the time period
         timerange = range(-1,(ymdf-ymdi).days+3,3)
-        date_max = ymdf+dt.timedelta(days=1)
+        date_max = ymdf+dt.timedelta(days=2)
     for day in timerange:
         ymdn3 = ymdi+dt.timedelta(days=day)
         filelist = '' #list of daily files merged into the 3-day files, for OG_OROLSM files, only the first of each three days is needed
