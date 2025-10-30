@@ -29,6 +29,7 @@ OUTPUT_PATH=/work/bb1170/RUN/b382762/data/ERA5_daten/test/2011_02
 # metview conversion
 echo "starting metview"
 echo $CONFIG_PATH
+export METVIEW_PYTHON_START_TIMEOUT=100
 python convert_era5_dkrz_ml_v6.py --config_path $CONFIG_PATH
 
 # TODO add check to see if restartAnog folder is empty, otherwise need to rerun the metview skript
