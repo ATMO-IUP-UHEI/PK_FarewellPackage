@@ -6,8 +6,8 @@
 #SBATCH --mail-type=FAIL       # Notify user by email in case of job failure
 #SBATCH --account=bb1170       # Charge resources on this project account
 #SBATCH --mem=235G
-#SBATCH --output=/work/bb1170/RUN/b382762/data/FarewellPackage_test/inversions/slurm/analyse_inversion.o%j    # File name for standard output
-#SBATCH --error=/work/bb1170/RUN/b382762/data/FarewellPackage_test/inversions/slurm/analyse_inversion.e%j     # File name for standard error output
+#SBATCH --output=slurm/analyse_inversion.o%j    # File name for standard output
+#SBATCH --error=slurm/analyse_inversion.e%j     # File name for standard error output
 
 eval "$(conda shell.bash hook)"     # activate conda env
 conda activate pyinverse
