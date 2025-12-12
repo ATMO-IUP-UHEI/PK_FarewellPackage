@@ -10,7 +10,7 @@
 #SBATCH --error=slurm/flexpart_v11_multiple.e%j     # File name for standard error output
 
 eval "$(conda shell.bash hook)"     # activate conda env
-conda activate flex
+conda activate inversion
 
 # for running this skript with one pathnames directory
 # PATHNAMES_DIR="/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/RemoTeCv240/2010_06/config/pathnames_0" #path to directory containing multiple pathnames files
@@ -26,5 +26,5 @@ do
     # run flexpart 
     echo "$PATHNAMES_PATH" 
     echo $(sed -n '3p' $PATHNAMES_PATH)
-    srun ./src/FLEXPART_ETA $PATHNAMES_PATH > "${OUTPUT_PATH}/log.txt"     # run the command with path to pathnames directory, save output in log.txt file in respective output directory
+    srun  /work/bb1170/RUN/b383736/software/flexpart/src/FLEXPART_ETA $PATHNAMES_PATH > "${OUTPUT_PATH}/log.txt"     # run the command with path to pathnames directory, save output in log.txt file in respective output directory
 done
