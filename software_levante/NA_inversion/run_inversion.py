@@ -124,9 +124,10 @@ def get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0
     Retruns:
         prior_cov: covariance matrix
     '''
+
     T=(T*30.437)    # months -> days
     # get time differces
-    t_vals=weekly_prior.time.values
+    t_vals=np.array(weekly_prior.time.values, dtype='datetime64[D]')
     # C_T(t1,t2)= exp(-|t1-t2|/T)
     C_T=np.exp(-np.abs(t_vals[:, None] - t_vals[None, :])/ np.timedelta64(1, 'D')/T)
 
@@ -364,7 +365,7 @@ if __name__ == "__main__":
             is_path=f'{output_dir}/insitu/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
             gosat_path=f'{output_dir}/RemoTeCv240/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         # read prior flux 
-        flux_path=f'/work/bb1170/RUN/b382762/data/TM5Inversion/glb3x2_20220413_new_gridded_flux/flux_{res}x{res}_prior_cut.nc'
+        flux_path=f'/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/TM54DVar_fluxes/flux_{res}x{res}_prior_cut.nc'
         # read data
         is_data=xr.open_dataset(is_path)
         gosat_data=xr.open_dataset(gosat_path)
@@ -442,10 +443,13 @@ if __name__ == "__main__":
             else:
                 if corr_str=='with':
                     print('geting cov matrix')
-                    prior_cov = get_cov_from_weekly_prior(weekly_prior)
+                    prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0.005)
                 elif corr_str=='no':
                     print('geting prior variance')
                     prior_cov = get_prior_var_no_correlation_from_weekly_prior(weekly_prior)
+                    import sparse
+                    prior_cov=(sparse.COO.from_scipy_sparse(prior_cov)).todense()
+                    
                 # save covariance matrix
                 if not os.path.isdir(f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/'):
                     os.makedirs(f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/')
