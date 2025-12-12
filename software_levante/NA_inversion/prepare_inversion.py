@@ -182,7 +182,7 @@ def calc_TM5_background_gosat(release_dir, TM5_dir,num_parts,gosat_path,gosat_sp
         add_to_gosat_sounding_data([val], [col_name],gosat_path,gosat_spath)  
     return val
 
-def get_gosta_bg_xco2(start_date, end_date,flex_data_dir, gosat_dir,gosat_sdir,TM5_ds, TM5flux_path, TM5_dir, num_parts=40000):
+def get_gosat_bg_xco2(start_date, end_date,flex_data_dir, gosat_dir,gosat_sdir,TM5_ds, TM5flux_path, TM5_dir, num_parts=40000):
     ''' calculate gosat background, TM5-4DVar xco2 and flux enhancement estimate using 1x1 footprint and TM5-4DVar posterior flux
     Args:
         start_date, end_date: timeperiod of measurements
@@ -391,7 +391,7 @@ def process_flexpart_runs(start_date, end_date,flex_dir,gosat_dir,is_dir, TM5flu
         # calculate background, TM5-4DVAR xco2 and enhancement from footprints an 1x1 fluxes
         flex_data_dir=f'{flex_dir}/RemoTeCv240/'
         gosat_sdir=f"{flex_dir}/RemoTeCv240/TM5-4DVar_estimate/"
-        get_gosta_bg_xco2(start_date, end_date,flex_data_dir, gosat_dir,gosat_sdir,ds, TM5flux_path, TM5_dir)
+        get_gosat_bg_xco2(start_date, end_date,flex_data_dir, gosat_dir,gosat_sdir,ds, TM5flux_path, TM5_dir)
     
         # insitu measurements:
         # calculate background
@@ -630,7 +630,7 @@ if __name__ == "__main__":
     if GET_XCO2_VALS:
         # path to TM5-4DVar fluxes, used for enhancement estimate with 1x1 flux*footprint
         TM5flux_path_1x1=f'{TM5flux_dir}/flux_1x1_{bg_str}_cut.nc'    
-        get_gosta_bg_xco2(start_date, end_date,f'{flex_dir}/RemoTeCv240', gosat_dir,gosat_csv_sdir,bg_str, TM5flux_path_1x1, TM5_dir)
+        get_gosat_bg_xco2(start_date, end_date,f'{flex_dir}/RemoTeCv240', gosat_dir,gosat_csv_sdir,bg_str, TM5flux_path_1x1, TM5_dir)
     if GET_INTERP_TM5_VALS:
         calc_interpolated_TM5_meas_values(start_date, end_date, TM5_dir, gosat_csv_sdir, is_csv_dir, bg_str)
     
