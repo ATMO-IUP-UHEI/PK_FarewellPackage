@@ -97,17 +97,18 @@ def main(config_path):
             if not os.path.isdir(pathnames_dir_temp):
                 os.makedirs(pathnames_dir_temp)
 
-        # create part_init.nc file
-        part_init_config=create_part_init.read_config(part_init_config_path)
-        num_part, pmin,pmax,nspecies,species_id,species_mass,kindz,num_layers = part_init_config['num_part'],part_init_config['pmin'],part_init_config['pmax'],part_init_config['nspecies'],part_init_config['species_id'],part_init_config['species_mass'],part_init_config['kindz'],part_init_config['num_layers']
-        create_part_init.create_part_init(out_dir_temp,num_part,num_layers,num_r, lat,lon,r_time,pmin,pmax,nspecies,species_id,species_mass,kindz)
-
         # make options directory
         # options_outpath_temp=f'{output_path}config/options_{release_id}/'
         options_outpath_temp=f'{output_path}/{sim_start[i][0][:4]}_{sim_start[i][0][4:6]}/config/options_{sim_start[i][0]}/'
         os.makedirs(options_outpath_temp,exist_ok = True)
         # copy all files from options dummy directory
         copy_tree(options_dummy_path, options_outpath_temp)
+        
+        # create part_init.nc file
+        part_init_config=create_part_init.read_config(part_init_config_path)
+        num_part, pmin,pmax,nspecies,species_id,species_mass,kindz,num_layers = part_init_config['num_part'],part_init_config['pmin'],part_init_config['pmax'],part_init_config['nspecies'],part_init_config['species_id'],part_init_config['species_mass'],part_init_config['kindz'],part_init_config['num_layers']
+        create_part_init.create_part_init(options_outpath_temp,num_part,num_layers,num_r, lat,lon,r_time,pmin,pmax,nspecies,species_id,species_mass,kindz)
+
         # write command file
         prepare_command(options_dummy_path,options_outpath_temp, start, stop)
         # write pathnames file

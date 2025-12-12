@@ -114,10 +114,7 @@ def prepare_IS_releases(start_date, end_date, IS_positions_dir, output_path, opt
             # create Release_directory
             release_outdir_day=f'{output_path}/{date.strftime("%Y_%m")}/Release_{date.strftime("%Y%m%d")}/'
             os.makedirs(release_outdir_day)
-            # save dataset
-            ds.to_netcdf(release_outdir_day+'part_ic.nc')
-            print(f'Written file {release_outdir_day}part_ic.nc')
-            
+
             # make options directory
             options_outpath_temp=f'{output_path}/{date.strftime("%Y_%m")}/config/options_{date.strftime("%Y%m%d")}/'
             os.makedirs(options_outpath_temp,exist_ok = True)
@@ -125,6 +122,10 @@ def prepare_IS_releases(start_date, end_date, IS_positions_dir, output_path, opt
             copy_tree(options_dummy_path, options_outpath_temp)
             # write command file
             prepare_command(options_dummy_path,options_outpath_temp, sim_max.to_numpy().astype('datetime64[s]'), sim_min.to_numpy().astype('datetime64[s]'))
+            # save dataset
+            ds.to_netcdf(options_outpath_temp+'part_ic.nc')
+            print(f'Written file {options_outpath_temp}part_ic.nc')
+            
             # write pathnames file
             os.makedirs(f'{output_path}{date.strftime("%Y_%m")}/config/pathnames/',exist_ok = True)
             # pathnames_file=f'{output_path}config/pathnames/pathnames_{release_id}'    # pathnames files numbered
