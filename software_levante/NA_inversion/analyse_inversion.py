@@ -116,7 +116,7 @@ def get_high_res_TM5_co2(month_date, prior_flux_path, f_dir, s_dir, cols, col_na
     print(f'saved to: {spath}')
     return
 
-def get_weekly_meas_range(data_dir):
+def get_weekly_meas_range(data_dir, start_date, end_date):
     ''' Get range of measurements and their standard deviation during a week, for insitu, GOSAT measurements and modeled values
     Args:
         data_dir: path to inversion output directory
@@ -124,8 +124,8 @@ def get_weekly_meas_range(data_dir):
         nothing, saves weekly mean, std and range of measurement data for each grid cell
     '''
     # read meas data
-    gosat_weekly = xr.open_dataset(f'{data_dir}/gosat_data_2x2_20091001-20110331_RemoTeC_2.4.0+IS_bg.nc')
-    is_weekly = xr.open_dataset(f'{data_dir}/insitu_data_2x2_20091001-20110331_RemoTeC_2.4.0+IS_bg.nc')
+    gosat_weekly = xr.open_dataset(f'{data_dir}/gosat_data_2x2_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_RemoTeC_2.4.0+IS_bg.nc')
+    is_weekly = xr.open_dataset(f'{data_dir}/insitu_data_2x2_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_RemoTeC_2.4.0+IS_bg.nc')
 
     #  get enhancement + bg
     is_weekly['prior_val+bg']=is_weekly.prior_val+is_weekly['TM5_RemoTeC_2.4.0+IS_background']
@@ -320,7 +320,7 @@ def plot_4x4_flux_overwiev(data_dir,start_date, end_date,ref_flux_dir, bg_ds,tit
     print(f'saved to: {spath_fig}')
     plt.close()
 
-def plot_inner_2x2_region_fluxes(data_dir,ref_flux_dir, gosat_err_val, meas_err_val,corr_str, color_sel, bg_str = 'RemoTeC_2.4.0+IS'):
+def plot_inner_2x2_region_fluxes(data_dir,ref_flux_dir, gosat_err_val, meas_err_val,corr_str, color_sel,start_date, end_date, bg_str = 'RemoTeC_2.4.0+IS'):
     ''' plot time series of prior, posterior and TM5-4DVar reference fluxes for all grid cells in inner domain
     Args:
         data_dir:   path to inversion directory
@@ -333,10 +333,10 @@ def plot_inner_2x2_region_fluxes(data_dir,ref_flux_dir, gosat_err_val, meas_err_
     Returns: nothing, saves plot'''
     
     # read data
-    data=xr.open_dataset(f'{data_dir}/20091001-20110331_{bg_str}_bg.nc').sel(latitude=slice(20,48), longitude=slice(-123,-73))
+    data=xr.open_dataset(f'{data_dir}/{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc').sel(latitude=slice(20,48), longitude=slice(-123,-73))
     # read reference
     ref_flux_2x2=xr.open_dataset(f'{ref_flux_dir}/flux_2x2_{bg_str}_cut.nc').sel(latitude=slice(20,48), longitude=slice(-123,-73))
-    
+
     title_str=f'Total 2x2 flux, {corr_str} correlation, with total scaling,{gosat_err_val}pp gosat meas err, {meas_err_val}ppm measurement error'
     lat_lon_list=[(lat, lon) for lat in data.latitude.values for lon in data.longitude.values]
     # sort by latitude descending, longitude ascending
@@ -363,9 +363,10 @@ def plot_inner_2x2_region_fluxes(data_dir,ref_flux_dir, gosat_err_val, meas_err_
         
         ax[i].legend()
         ax[i].set_title(f'lat/lon: {lat_sel}/{lon_sel}')
-        ax[i].set_xlim(dt.date(2010,1,1), dt.date(2010,12,31))
+        ax[i].set_xlim(start_date,end_date)
+        #ax[i].set_xlim(dt.date(2010,1,1), dt.date(2010,12,31))
         ax[i].tick_params(labelleft=True)
-        ax[i].set_ylim(-4e-7, 2e-7)
+        ax[i].set_ylim(-4e-7, 4e-7)
         
         # You can change the step of range() as you prefer (now, it selects each third month) 
         ax[i].xaxis.set_major_locator(mdates.MonthLocator(bymonth=range(1,12,3)))
@@ -424,7 +425,7 @@ def mask_to_polygon(mask, region_name):
         for lon in mask.longitude.values:
             if mask.sel(latitude=lat, longitude=lon).item():
                 polygons.append(box(lon - 1, lat - 1, lon + 1, lat + 1))
-    merged = geopandas.GeoSeries(polygons).unary_union  # dissolve adjacent boxes
+    merged = geopandas.GeoSeries(polygons).union_all()  # dissolve adjacent boxes
     return geopandas.GeoDataFrame({'region': [region_name], 'geometry': [merged]}, crs="EPSG:4326")
 
 def create_east_west_US_gdf(west_mask_path, east_mask_path, spath):
@@ -455,33 +456,33 @@ if __name__ == "__main__":
     PLOT_INNER_2X2_FLUXES=True     # plot fluxes for 2x2 inversion, inner domain
     PLOT_4x4_FLUX_MAP=False     # plot fluxes for 4x4 inversion
     
-    start_date = dt.date(2009,10,1)
-    end_date = dt.date(2011,3,31)
+    start_date = dt.date(2010,8,1)
+    end_date = dt.date(2010,11,3)
     bg_str = 'RemoTeC_2.4.0+IS'
     
     # footprint variable name
     f_str='spec001_mr_scaled'    # 'spec001_mr', 'spec001_mr_scaled'
     # with/without correlation
-    corr_str_list=['with']          #, 'with', 'no
+    corr_str_list=['with','no']          #, 'with', 'no'
     # spatial resolution
     res=2
     
     # list of errors
-    gosat_err_list=[1]             # [0.25,0.5, 0.8,1, 1.2, 1.5,2,2.5,3]
-    is_err_list=[2]                # [0.5,1,2,4,6,8,10]
+    gosat_err_list=[0.5,1,2,3]           # [0.25,0.5, 0.8,1, 1.2, 1.5,2,2.5,3]
+    is_err_list=[0.5,1,2,3]              # [0.5,1,2,4,6,8,10]
     # selected error values
     gosat_err_val_sel=1
     is_err_val_sel=2
     
     # path to parent directory
-    parent_data_dir='/work/bb1170/RUN/b382762/data/FarewellPackage_test/' 
-    ref_flux_dir = '/work/bb1170/RUN/b382762/data/FarewellPackage_test/TM5-4DVar/'   # path to TM5-4DVar flux directory
+    parent_data_dir='/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/' 
+    ref_flux_dir = '/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/TM54DVar_fluxes/'   # path to TM5-4DVar flux directory
 
     if GET_EAST_WEST_MASKS:
-        ref_path='/work/bb1170/RUN/b382762/data/TM5Inversion/glb3x2_20220413_new_gridded_flux/flux_2x2_RemoTeC_2.4.0+IS_cut_weekly.nc'
-        west_mask_path='/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/inversions/2x2/west_mask.nc'
-        east_mask_path= '/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/inversions/2x2/east_mask.nc'
-        gdf_spath="/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/inversions/2x2/east_west_region_boundaries.geojson"
+        ref_path='/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/TM54DVar_fluxes/flux_2x2_RemoTeC_2.4.0+IS_cut_weekly.nc'
+        west_mask_path='/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/inversions/2x2/west_mask.nc'
+        east_mask_path= '/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/inversions/2x2/east_mask.nc'
+        gdf_spath="/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/inversions/2x2/east_west_region_boundaries.geojson"
         create_east_west_US_mask(ref_path, west_mask_path, east_mask_path)
         create_east_west_US_gdf(west_mask_path, east_mask_path, gdf_spath)
     
@@ -491,8 +492,8 @@ if __name__ == "__main__":
         # is_footprints_path = f'{parent_data_dir}Flexpart/insitu/prep_footprints/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         # gosat_footprints_path = f'{parent_data_dir}Flexpart/RemoTeCv240/prep_footprints/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         
-        is_footprints_path = '/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/insitu/prep_footprints/high_res/scaled_weekly_total/high_res_scaled_footprints_20091001-20110331_2x2_weekly_new.nc'
-        gosat_footprints_path = '/work/bb1170/RUN/b382762/data/Flexpart11_invSetup_final/RemoTeCv240/prep_footprints/high_res/scaled_weekly_total/high_res_scaled_footprints_20091001-20110331_2x2_weekly_new.nc'
+        is_footprints_path = f'/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/insitu/prep_footprints/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc'
+        gosat_footprints_path = f'/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/RemoTeCv240/prep_footprints/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc'
         
         for corr_str in corr_str_list:     
             # fixed gosat_err_val, variable meas_err_val
@@ -555,11 +556,11 @@ if __name__ == "__main__":
             gosat_err_val=gosat_err_val_sel
             for meas_err_val in is_err_list:      #
                 inv_dir=f'{parent_data_dir}/inversions/{res}x{res}/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
-                get_weekly_meas_range(inv_dir)
+                get_weekly_meas_range(inv_dir, start_date, end_date)
             meas_err_val=is_err_val_sel
             for gosat_err_val in gosat_err_list:        #
                 inv_dir=f'{parent_data_dir}/inversions/{res}x{res}/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
-                get_weekly_meas_range(inv_dir)
+                get_weekly_meas_range(inv_dir, start_date, end_date)
 
     if PLOT_INNER_2X2_FLUXES:
         gosat_err_val=gosat_err_val_sel
@@ -569,7 +570,7 @@ if __name__ == "__main__":
         for i in range(len(is_err_list)):
             meas_err_val=is_err_list[i]
             inv_dir=f'{parent_data_dir}/inversions/2x2/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
-            plot_inner_2x2_region_fluxes(inv_dir,ref_flux_dir, gosat_err_val, meas_err_val,corr_str,colors[i], bg_str = 'RemoTeC_2.4.0+IS')
+            plot_inner_2x2_region_fluxes(inv_dir,ref_flux_dir, gosat_err_val, meas_err_val,corr_str,colors[i],start_date, end_date, bg_str = 'RemoTeC_2.4.0+IS')
         
         meas_err_val=is_err_val_sel
         cmap = mpl.colormaps['Reds']
@@ -578,7 +579,7 @@ if __name__ == "__main__":
         for i in range(len(gosat_err_list)):
             gosat_err_val=gosat_err_list[i]
             inv_dir=f'{parent_data_dir}/inversions/2x2/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
-            plot_inner_2x2_region_fluxes(inv_dir,ref_flux_dir, gosat_err_val, meas_err_val,corr_str,colors[i], bg_str = 'RemoTeC_2.4.0+IS')
+            plot_inner_2x2_region_fluxes(inv_dir,ref_flux_dir, gosat_err_val, meas_err_val,corr_str,colors[i], start_date, end_date, bg_str = 'RemoTeC_2.4.0+IS')
     if PLOT_4x4_FLUX_MAP:        
         for meas_err_val in is_err_list:           
             data_dir=f'{parent_data_dir}/inversions/4x4/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
@@ -593,7 +594,7 @@ if __name__ == "__main__":
                 flux_dir=f'{parent_data_dir}/inversions/{res}x{res}/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
                 gosat_path=f'{flux_dir}/gosat_data_{res}x{res}_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc'
                 insitu_path=f'{flux_dir}/insitu_data_{res}x{res}_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc'
-                # plot difference histogramms
+                # plot differencehistogramms
                 plot_co2_xco2_diff_hist(gosat_path, insitu_path, flux_dir,bg_str,cols=['prior','posterior'], title_str=f'{res}x{res}, {corr_str} correlation, {gosat_err_val}ppm gosat meas_err, {meas_err_val}ppm insitu meas_err')
                 # plot_co2_xco2_diff_hist(gosat_path, insitu_path, flux_dir,bg_str,cols=['prior'], title_str=f'{res}x{res}, {corr_str} correlation, {gosat_err_val}ppm gosat meas_err, {meas_err_val}ppm insitu meas_err')
             meas_err_val=is_err_val_sel
