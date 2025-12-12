@@ -64,7 +64,7 @@ def calc_TM5flux_enhancement(footprint_dir, flux_path,gosat_path,gosat_spath='',
 
     # sum over time seperately for each month
     for i in range(0,len(release_month_tuple)):
-        if i==0:
+        if i==0:  
             data_sel=data.sel(time=f'{release_month_tuple[i][0]}-{release_month_tuple[i][1]:02d}').sum(dim='time').assign_coords(time=dt.datetime(release_month_tuple[i][0], release_month_tuple[i][1],1))
         else:
             data_temp=data.sel(time=f'{release_month_tuple[i][0]}-{release_month_tuple[i][1]:02d}').sum(dim='time').assign_coords(time=dt.datetime(release_month_tuple[i][0], release_month_tuple[i][1],1))
@@ -122,7 +122,7 @@ def calc_TM5_background_gosat(release_dir, TM5_dir,num_parts,gosat_path,gosat_sp
             firstFile=False
         else:
             temp=xr.open_dataset(f'{TM5_dir}xco2_mean_{date_str}.nc')
-            TM5_data=xr.concat([TM5_data,temp], dim='times')
+            TM5_data=xr.concat([TM5_data,temp], dim='times', data_vars='all')
 
     # add boundaries as coordinate 
     TM5_data['boundaries']=TM5_data.boundaries
@@ -317,7 +317,7 @@ def calc_TM5_background_for_ISmeas(release_dir, TM5_dir,num_parts,is_path,is_spa
         date_str=date.strftime('%Y%m%d')
         TM5_data=xr.open_dataset(f'{TM5_dir}xco2_mean_{date_str}.nc')
         TM5_list.append(TM5_data)
-    TM5_data=xr.concat(TM5_list, dim='times')
+    TM5_data=xr.concat(TM5_list, dim='times', data_vars='all')
     # add boundaries as coordinate 
     TM5_data['boundaries']=TM5_data.boundaries
     TM5_data=TM5_data.squeeze()
@@ -461,7 +461,7 @@ def get_frac_remaining_particles(dir_path, csv_dir,csv_sdir,file_str, start_date
         print('no data found, problem with given directory?')
         print(release_path)
     else:
-        data=xr.concat(data_list, dim='time')
+        data=xr.concat(data_list, dim='time', join='outer')
         # save to nc file
         spath=f'{dir_path}/remaining_particles_{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}.nc'
         print(f'saving to {spath}')
@@ -544,31 +544,41 @@ def get_weekly_TM5_4DVarflux(ds_path):
     ds_mean=ds.groupby("time").mean('time')
     ds_mean['time']=ds_mean.time.assign_attrs(description='start date of the week that is averaged over')
     spath=ds_path.replace('.nc', '_weekly.nc')
+
+     #needed to add this in since a CategoricalDtype with dates as categories can't be read as a data type? (S.G. 24.10.25)
+    new_time_index = pd.to_datetime(ds_mean.indexes['time'].astype(str))
+    ds_mean = ds_mean.assign_coords(time=new_time_index)
+    if hasattr(ds_mean['time'], 'encoding'):
+        for key in list(ds_mean['time'].encoding.keys()):
+            # remove any suspicious encoding entries related to pandas/categorical
+            if key in ('dtype', 'categories', 'pandas_type', 'pandas_version'):
+                del ds_mean['time'].encoding[key]
+
     print(f'saving data to {spath}')
     ds_mean.to_netcdf(spath)
     return
 
 # main
 if __name__ == "__main__":  
-    start_date, end_date =dt.date(2010,6,1), dt.date(2010,6,6)    # time period of measurements
+    start_date, end_date =dt.date(2010,8,1), dt.date(2010,11,3)    # time period of measurements
     # data paths
     # TM5-4DVar molefractions with selected dataset as subdirectory
-    TM5_molefrac_dir='/work/bb1170/RUN/b382762/data/TM5Inversion/co2_xco2_mean/'
+    TM5_molefrac_dir='/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/'
     bg_str = 'RemoTeC_2.4.0+IS'         # TM5-4DVar dataset, chose from ['RemoTeC_2.4.0+IS', 'ACOS+IS','IS', 'prior]
     TM5_dir=f'{TM5_molefrac_dir}{bg_str}/'
     # directory with TM5-4DVar fluxes
-    TM5flux_dir='/work/bb1170/RUN/b382762/data/FarewellPackage_test/TM5-4DVar/' 
+    TM5flux_dir='/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/TM54DVar_fluxes/'
     # path to high resolution (interpolated) scaling data
-    scaling_data_path='/work/bb1170/RUN/b382762/data/TM5Inversion/high_res_total_scaling_RemoTeC+IS.nc'
+    scaling_data_path='/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/high_res_total_scaling_RemoTeC+IS.nc'
 
     # FLEXPART
-    flex_dir='/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/' # path to directory with RemoTeC and insitu Flexpart release subdirectories
+    flex_dir='/work/bb1170/RUN/b383736/data/PK_Flexpart/2months' # path to directory with RemoTeC and insitu Flexpart release subdirectories
     num_parts=40000     # number of particles per measurement
 
     # measurement data paths
     # path to soundingposition.csv files
-    gosat_dir='/work/bb1170/RUN/b382762/data/FarewellPackage_test/GOSAT/'      
-    is_dir=f'/work/bb1170/RUN/b382762/data/FarewellPackage_test/ObsPack/'
+    gosat_dir='/work/bb1170/RUN/b383736/data/test/GOSAT/PK_test'      
+    is_dir=f'/work/bb1170/RUN/b383736/data/test/Obspack/PK_test'
     # path to where .csv files should be saved, will creade subdirectories YYYY_mm/co2_bg_YYYYMMDD.csv
     # should not be changed
     gosat_csv_sdir=f'{flex_dir}/RemoTeCv240/TM5-4DVar_estimate/'
@@ -595,7 +605,7 @@ if __name__ == "__main__":
         # for dataset selected for background calculation and prior
         for temp in [bg_str, 'prior']:
             flux_path=f'{TM5flux_dir}/flux_1x1_{temp}.nc'
-            region=[6,66,-146,-56] # somewhat larger than Flexpart region 12,56,-134,-62
+            region=[12,56,-134,-62] #[6,66,-146,-56] # somewhat larger than Flexpart region 12,56,-134,-62
             res=2
             # cut fluxes to desired region for 1x1 and res resolution
             prep_TM5_4DVar_flux(flux_path, region, 1)
@@ -603,6 +613,7 @@ if __name__ == "__main__":
             # get weekly fluxes for 1x1 and 2x2
             get_weekly_TM5_4DVarflux(f"{flux_path[:-3]}_cut.nc")
             get_weekly_TM5_4DVarflux(f"{flux_path.replace('_1x1_', f'_{res}x{res}_')[:-3]}_cut.nc")
+     
     
     # calculate DF_last_positions.pkl, get background, xco2 enhancements by selecting nearest and by interpolating
     if GET_IS_BG_CO2:
@@ -648,11 +659,12 @@ if __name__ == "__main__":
             is_files=[flexpart_is_output_path+d+f for d in dir_list if os.path.isdir(flexpart_is_output_path+d) for f in os.listdir(flexpart_is_output_path+d) if f.startswith('grid_time_')]
             ds=[]
             for f in is_files:
-                temp=xr.open_dataset(f).sel(height=30)[['spec001_mr']].squeeze(dim='nageclass')
+                temp=xr.open_dataset(f, decode_timedelta=True).sel(height=30)[['spec001_mr']].squeeze(dim='nageclass')  
+                temp['spec001_mr'] = (temp.spec001_mr /30*28.96/44*10**6).assign_attrs(description='Flexpart footprint in units necessary for inversion', units='ppm s m^2/kgCO2') # divide by layer height - s m^3/kg --> s m^2 /kg
                 temp['release_num']=(('pointspec'), temp.pointspec.values)
                 temp['release_day']=pd.to_datetime(f[-36:-28])
                 ds.append(temp)
-            is_footprint=xr.concat(ds, dim='pointspec')
+            is_footprint=xr.concat(ds, dim='pointspec', data_vars='all', join='outer')
             is_footprint['pointspec']=is_footprint.pointspec.values
             # add meas info to this dataset
             data_list=[]
@@ -664,6 +676,8 @@ if __name__ == "__main__":
                     data_list.append(data)
             is_data=pd.concat(data_list)
             is_data=is_data.reset_index(names='release_num')
+             
+           
             # check that release dates match
             if (is_footprint.release_day.dt.date.values==is_data.time.dt.date).all():
                 # check that release numbers match 
@@ -673,7 +687,7 @@ if __name__ == "__main__":
                     is_data.columns
                     # add release data to footprints
                     cols=['release_time', 'file', 'release_lat', 'release_lon','co2_val[ppm]', 'elevation[masl]', 'intake_height[magl]',
-                        'TM5_RemoTeC_2.4.0+IS_background', 'p_intake_height[hPa]','TM5_RemoTeC_2.4.0+IS_co2', 'frac_remaining']
+                        'TM5_RemoTeC_2.4.0+IS_background', 'p_intake_height[hPa]','TM5_RemoTeC_2.4.0+IS_co2','TM5_RemoTeC_2.4.0+IS_co2_interpolated', 'frac_remaining']
                     for col in cols:
                         is_footprint[col]=(('pointspec'), is_data[col])
                     if not os.path.isdir(f'{flexpart_is_output_path}prep_footprints/hourly'):
@@ -691,11 +705,12 @@ if __name__ == "__main__":
             gosat_files=[flexpart_gosat_output_path+d+f for d in dir_list if os.path.isdir(flexpart_gosat_output_path+d) for f in os.listdir(flexpart_gosat_output_path+d) if f.startswith('grid_time_')]
             ds=[]
             for f in gosat_files:
-                temp=xr.open_dataset(f).sel(height=30)[['spec001_mr']].squeeze(dim='nageclass')
+                temp=xr.open_dataset(f, decode_timedelta=True).sel(height=30)[['spec001_mr']].squeeze(dim='nageclass')
+                temp['spec001_mr'] = (temp.spec001_mr /30*28.96/44*10**6).assign_attrs(description='Flexpart footprint in units necessary for inversion', units='ppm s m^2/kgCO2') # divide by layer height - s m^3/kg --> s m^2 /kg
                 temp['release_num']=(('pointspec'), temp.pointspec.values)
                 temp['release_day']=pd.to_datetime(f[-36:-28])
                 ds.append(temp)
-            gosat_footprint=xr.concat(ds, dim='pointspec')
+            gosat_footprint=xr.concat(ds, dim='pointspec', data_vars='all', join='outer')
             gosat_footprint['pointspec']=gosat_footprint.pointspec.values
             # add meas info to this dataset
             data_list=[]
@@ -716,7 +731,7 @@ if __name__ == "__main__":
                     gosat_data.columns
                     # add release data to footprints
                     cols=['release_time', 'release_lat', 'release_lon','xco2', 'xco2_err',
-                        'TM5_RemoTeC_2.4.0+IS_background', 'TM5_RemoTeC_2.4.0+IS_xco2', 'frac_remaining']
+                        'TM5_RemoTeC_2.4.0+IS_background', 'TM5_RemoTeC_2.4.0+IS_xco2','TM5_RemoTeC_2.4.0+IS_xco2_interpolated', 'frac_remaining']
                     for col in cols:
                         gosat_footprint[col]=(('pointspec'), gosat_data[col])
                     if not os.path.isdir(f'{flexpart_gosat_output_path}prep_footprints/hourly/'):
@@ -740,7 +755,7 @@ if __name__ == "__main__":
                 print('reading footprint data')
                 data=xr.open_dataset(data_path)
                 # multiply with TM5-4DVar total scaling factors from prior
-                data['spec001_mr_scaled']=(data['spec001_mr']*scaling_data.scaling_total).assign_attrs(description='Flexpart footprint in units necessary for inversion, scaled with total diurnal scaling factor from TM5-4DVar prior fluxes (sc_tot = bio_h/tot_mean + rest_mean/tot_mean)', units='s m^2/kg')
+                data['spec001_mr_scaled']=(data['spec001_mr']*scaling_data.scaling_total).assign_attrs(description='Flexpart footprint in units necessary for inversion, scaled with total diurnal scaling factor from TM5-4DVar prior fluxes (sc_tot = bio_h/tot_mean + rest_mean/tot_mean)', units='ppm s m^2/kgCO2')
     
                 # save dataset
                 data_spath=f'{flex_dir}/{dir_str}/prep_footprints/scaled_hourly/high_res_scaled_footprints_{month_start.strftime("%Y_%m")}.nc'
@@ -754,12 +769,13 @@ if __name__ == "__main__":
                 # Create the 7-day period bins
                 period_bins = pd.date_range(start=get_start_date_of_week(month_start-dt.timedelta(days=10)), end=(get_start_date_of_week(month_end)+dt.timedelta(days=7)), freq="7D")
                 # Cut the time array into the defined 7-day bins
-                time_bins = pd.cut(data["time"], bins=period_bins, right=False, labels=period_bins[:-1])
+                time_bins = pd.cut(data["time"], bins=period_bins, right=False, labels=pd.to_datetime(period_bins[:-1]))
                 # Assign the new time bins as coordinates
                 data=data.assign_coords(time=time_bins)
                 # weekly sum
                 # the timestamp corresponds to the first day of the week
                 data=data.groupby("time").sum('time')
+                data=data.assign_coords(time=data.time.astype("datetime64[ns]"))
                 # save dataset
                 spath=f"{flex_dir}/{dir_str}/prep_footprints/scaled_weekly/high_res_scaled_footprints_{month_start.strftime('%Y_%m')}_weekly.nc"
                 if not os.path.isdir(f'{flex_dir}/{dir_str}/prep_footprints/scaled_weekly'):
@@ -787,12 +803,14 @@ if __name__ == "__main__":
                 # Create the 7-day period bins
                 period_bins = pd.date_range(start=get_start_date_of_week(month_start-dt.timedelta(days=10)), end=(get_start_date_of_week(month_end)+dt.timedelta(days=7)), freq="7D")
                 # Cut the time array into the defined 7-day bins
-                time_bins = pd.cut(data["time"], bins=period_bins, right=False, labels=period_bins[:-1])
+                time_bins = pd.cut(data["time"], bins=period_bins, right=False, labels=pd.to_datetime(period_bins[:-1]))
                 # Assign the new time bins as coordinates
                 data=data.assign_coords(time=time_bins)
                 # weekly sum
                 # the timestamp corresponds to the first day of the week
                 data=data.groupby("time").sum('time')
+                data=data.assign_coords(time=data.time.astype("datetime64[ns]"))
+
                 # save dataset
                 spath=f"{flex_dir}/{dir_str}/prep_footprints/weekly/high_res_footprints_{month_start.strftime('%Y_%m')}_weekly.nc"
                 if not os.path.isdir(f'{flex_dir}/{dir_str}/prep_footprints/weekly'):
@@ -804,8 +822,8 @@ if __name__ == "__main__":
     # combine into one ds for entire time period,  coarsen to 2x2 and 4x4 resolution
     if COARSEN_HIGH_RES_FOOTPRINT:
         is_cols=['release_num','release_day','release_time','file','release_lat','release_lon','co2_val[ppm]','elevation[masl]',
-                 'intake_height[magl]','TM5_RemoTeC_2.4.0+IS_background','p_intake_height[hPa]','TM5_RemoTeC_2.4.0+IS_co2','frac_remaining']
-        gosat_cols=['release_num', 'release_lat', 'release_lon', 'xco2', 'xco2_err', 'TM5_RemoTeC_2.4.0+IS_background', 'TM5_RemoTeC_2.4.0+IS_xco2', 'frac_remaining']
+                 'intake_height[magl]','TM5_RemoTeC_2.4.0+IS_background','p_intake_height[hPa]','TM5_RemoTeC_2.4.0+IS_co2','TM5_RemoTeC_2.4.0+IS_co2_interpolated','frac_remaining']
+        gosat_cols=['release_num', 'release_lat', 'release_lon', 'xco2', 'xco2_err', 'TM5_RemoTeC_2.4.0+IS_background', 'TM5_RemoTeC_2.4.0+IS_xco2','TM5_RemoTeC_2.4.0+IS_xco2_interpolated', 'frac_remaining']
         dir_str=['insitu', 'RemoTeCv240']
         col_list=[is_cols, gosat_cols]
         
