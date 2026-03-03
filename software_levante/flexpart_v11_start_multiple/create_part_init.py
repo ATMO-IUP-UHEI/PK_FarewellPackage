@@ -43,7 +43,7 @@ def h(
     return height
 
 # TODO add other options for part_init than total column at one location
-def create_part_init(outpath,num_part,num_layers,num_releases, lat,lon,release_time,pmin,pmax,nspecies,species_id,species_mass,kindz):
+def create_part_init(outpath,num_part,num_layers,num_releases, lat,lon,release_time,pmin,pmax,nspecies,species_id,species_mass,kindz,averaging_kernel,pressure_levels):
     """Creates part_init.nc file that can be used as initial condition for FLEXPART_v11 run
     Args:
         outpath: path to directory where file will be saved
@@ -68,11 +68,7 @@ def create_part_init(outpath,num_part,num_layers,num_releases, lat,lon,release_t
     part_per_layer=int(num_part/num_layers)
     # get particle ids, ranges from 0 to number of particles per measurement release
     particle_id=np.arange(0,num_part*num_releases,step=1)
-    
-    # particles equally dirtributed in pressure
-    particles=np.linspace(pmax,pmin,num_part)   
-    # get height of particles, same for each release
-    particles_h=h(particles)
+
     # release ids for one measurement
     rmeas=np.zeros(num_part)
     for j in range(0,num_layers):
@@ -89,12 +85,26 @@ def create_part_init(outpath,num_part,num_layers,num_releases, lat,lon,release_t
     height = np.zeros(num_part*num_releases)
     # release 	Release ID of each particle, giving separate concentration fields for each ID when IOUTPUTFOREACHRELEASE in COMMAND is set 	1D-array of integers with dimension particle
     release=np.zeros(num_part*num_releases)
-    
     # set values for each release
     for i in range(0,num_releases):
         longitude[i*num_part:(i+1)*num_part]=lon[i]
         latitude[i*num_part:(i+1)*num_part]=lat[i]
         time[i*num_part:(i+1)*num_part]=release_time[i]
+    	# particles equally dirtributed in pressure
+        particles=np.zeros(num_part)
+        index_0=0
+        n_layers=len(averaging_kernel[i])
+        for k in reversed(range(0,n_layers)):
+            index_1=round(averaging_kernel[i][k]/sum(averaging_kernel[i])*num_part)
+            if k==0:
+                particles[0:num_part-index_0]=np.linspace(pressure_levels[i][k],pressure_levels[i][k+1],num_part-index_0)
+            else:
+                particles[num_part-index_0-index_1:num_part-index_0]=np.linspace(pressure_levels[i][k],pressure_levels[i][k+1],index_1)
+            # get height of particles, same for each release
+            index_0+=index_1
+        particles_h=h(particles,p0=pressure_levels[i][0])
+        particles_h.sort()
+
         height[i*num_part:(i+1)*num_part]=particles_h
         release[i*num_part:(i+1)*num_part]=rmeas+i*num_layers
         

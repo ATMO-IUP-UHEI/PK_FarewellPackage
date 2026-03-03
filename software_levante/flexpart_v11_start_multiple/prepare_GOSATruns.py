@@ -8,6 +8,7 @@ import pandas as pd
 import datetime as dt
 from os import listdir
 from os.path import isfile, join
+import xarray as xr
 
 ###################################################
 # run this script e.g. with 
@@ -18,7 +19,7 @@ from os.path import isfile, join
 @click.option("--config_path", required=True, help="path to options_config.yaml file",type=str)
 def main(config_path):
     config=read_paths(config_path)
-    options_dummy_path,output_path,input_path,available_path,sim_length,part_init_config_path= config['options_dummy_path'], config['output_path'], config['input_paths'], config['available_paths'],config['sim_length'],config['part_init_config_path']
+    options_dummy_path,output_path,input_path,available_path,sim_length,part_init_config_path,RemoTeC_version= config['options_dummy_path'], config['output_path'], config['input_paths'], config['available_paths'],config['sim_length'],config['part_init_config_path'],config['RemoTeC_version']
     sounding_dir= config['satellites_position_path']
     start_date=pd.to_datetime(config['startdate'], format='%Y%m%d').date()
     end_date=pd.to_datetime(config['enddate'], format='%Y%m%d').date()
@@ -49,31 +50,34 @@ def main(config_path):
     # otherwise read from satelight_sounding.csv
     else:   # with satelight_sounding path
         # creating empty lists for necessary variables
-        sim_start, sim_start_last, release_time,latitude, longitude,num_releases =[],[],[],[],[],[]
+        sim_start, sim_start_last, release_time,latitude, longitude,num_releases,averaging_kernel,pressure_levels =[],[],[],[],[],[],[],[]
         
         for date in pd.date_range(start_date, end_date):
         # for j in range(0,len(sounding_files)):
-            soundings_path=f'{sounding_dir}/{date.strftime("%Y_%m")}/RemoTeCv2.4.0_{date.strftime("%Y%m%d")}.csv'
+            soundings_path=f'{sounding_dir}/{date.strftime("%Y_%m")}/RemoTeCv{RemoTeC_version}_{date.strftime("%Y%m%d")}.nc'
             # check that file exists
             if os.path.isfile(soundings_path):
                 # with satelight_sounding path
                 print(f'reading sounding positions from {soundings_path}')
-                sounding_datetime,latitude_temp,longitude_temp=read_sounding_positions(soundings_path)
-                latitude.append(latitude_temp)
-                longitude.append(longitude_temp)
+                ds=xr.open_dataset(soundings_path)
+                sounding_datetime,latitude_temp,longitude_temp, averaging_kernel_temp,pressure_levels_temp=ds.time.values.flatten(),ds.latitude.values,ds.longitude.values,ds.xco2_averaging_kernel.values,ds.pressure_levels.values#read_sounding_positions(soundings_path)
+                latitude.append(latitude_temp.tolist())
+                longitude.append(longitude_temp.tolist())
                 num_releases.append(len(latitude_temp))
+                averaging_kernel.append(averaging_kernel_temp.tolist())
+                pressure_levels.append(pressure_levels_temp.tolist())
                 # sounding_date,sounding_time,latitude,longitude=read_sounding_positions(soundings_path)
-                
+                sounding_datetime=pd.to_datetime(sounding_datetime)
                 # get min and max of sim_start to determine start and stop of simulation that covers sim_length for all releases
-                sim_start_min=np.min(sounding_datetime).ceil('h')
-                sim_start_max=np.max(sounding_datetime).ceil('h')
-                
+                sim_start_min=np.min(pd.to_datetime(sounding_datetime)).ceil('h')
+                sim_start_max=np.max(pd.to_datetime(sounding_datetime)).ceil('h')
                 # start of simulation
                 sim_start.append([dt.datetime.strftime(sim_start_max, '%Y%m%d'),dt.datetime.strftime(sim_start_max, '%H%M%S')])
                 # start for last/earliest release
                 sim_start_last.append([dt.datetime.strftime(sim_start_min, '%Y%m%d'),dt.datetime.strftime(sim_start_min, '%H%M%S')])
+                sounding_datetime = pd.DatetimeIndex(sounding_datetime)
+                release_time.append(-np.floor((pd.to_datetime(sim_start_max)-sounding_datetime)/ pd.Timedelta(seconds=1)).astype(int))
 
-                release_time.append(-np.floor((pd.to_datetime(sim_start_max)-sounding_datetime).dt.total_seconds()).astype(int))
 
     for i in range(0,len(release_time)):
         # get start and end of simulation as datetime64
@@ -86,7 +90,8 @@ def main(config_path):
         lat=latitude[i]
         lon=longitude[i]
         num_r=num_releases[i]
-        
+        a_kernel=averaging_kernel[i]
+        p_levels=pressure_levels[i]
         # make output directory
         # out_dir_temp=f'{output_path}Release_{release_id}/'  # use if Release directories should be numbered
         out_dir_temp=f'{output_path}/{sim_start[i][0][:4]}_{sim_start[i][0][4:6]}/Release_{sim_start[i][0]}/' 
@@ -97,17 +102,16 @@ def main(config_path):
             if not os.path.isdir(pathnames_dir_temp):
                 os.makedirs(pathnames_dir_temp)
 
-        # create part_init.nc file
-        part_init_config=create_part_init.read_config(part_init_config_path)
-        num_part, pmin,pmax,nspecies,species_id,species_mass,kindz,num_layers = part_init_config['num_part'],part_init_config['pmin'],part_init_config['pmax'],part_init_config['nspecies'],part_init_config['species_id'],part_init_config['species_mass'],part_init_config['kindz'],part_init_config['num_layers']
-        create_part_init.create_part_init(out_dir_temp,num_part,num_layers,num_r, lat,lon,r_time,pmin,pmax,nspecies,species_id,species_mass,kindz)
-
         # make options directory
         # options_outpath_temp=f'{output_path}config/options_{release_id}/'
         options_outpath_temp=f'{output_path}/{sim_start[i][0][:4]}_{sim_start[i][0][4:6]}/config/options_{sim_start[i][0]}/'
         os.makedirs(options_outpath_temp,exist_ok = True)
         # copy all files from options dummy directory
         copy_tree(options_dummy_path, options_outpath_temp)
+         # create part_init.nc file
+        part_init_config=create_part_init.read_config(part_init_config_path)
+        num_part, pmin,pmax,nspecies,species_id,species_mass,kindz,num_layers = part_init_config['num_part'],part_init_config['pmin'],part_init_config['pmax'],part_init_config['nspecies'],part_init_config['species_id'],part_init_config['species_mass'],part_init_config['kindz'],part_init_config['num_layers']
+        create_part_init.create_part_init(options_outpath_temp,num_part,num_layers,num_r, lat,lon,r_time,pmin,pmax,nspecies,species_id,species_mass,kindz,a_kernel,p_levels)
         # write command file
         prepare_command(options_dummy_path,options_outpath_temp, start, stop)
         # write pathnames file
