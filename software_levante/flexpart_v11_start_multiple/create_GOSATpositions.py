@@ -17,12 +17,13 @@ import pandas as pd
 @click.option('--outfile','-o',help='filename for output', type=str)
 def main(gosat_config_path,outfile):
     GOSAT_dir,RemoTeC_version, Lat_min, Lat_max, Long_min, Long_max, outdir,startdate,enddate=read_gosat_config(gosat_config_path)
+
     if outdir is None:
         outdir=GOSAT_dir
         
     # RemoTeC v2.4.1
     if RemoTeC_version=='2.4.1':
-        write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_max,outdir, startdate,enddate)
+        write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_max,outdir, startdate,enddate,outfile=f'RemoTeCv{RemoTeC_version}')
     
     # RemoTeC v2.4.0
     if RemoTeC_version=='2.4.0':
@@ -35,7 +36,7 @@ def read_gosat_config(gosat_config_path):
         config = yaml.load(f, Loader=yaml.SafeLoader)
         return (config['GOSAT_dir'],config['RemoTeC_version'], config['Lat_min'], config['Lat_max'], config['Long_min'], config['Long_max'],config['outdir'], config['startdate'],config['enddate'])
 
-def write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_max,outdir, startdate,enddate, outfile='GOSATpositions'):  
+def write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_max,outdir, startdate,enddate, outfile='GOSATpositions',AVERAGE_MEAS=False):  
     # GOSAT_dir: path to directory containing GOSAT files  
     # startdate,enddate: 
     GOSAT_files=[f for f in listdir(GOSAT_dir) if isfile(join(GOSAT_dir, f)) if f.endswith('.nc')]
@@ -52,27 +53,37 @@ def write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
         # check if there is longitude < Long_min, if so cut and continue
         if np.min(data.longitude)<Long_max:
             data=data.where((data.longitude<Long_max), drop=True)
-            # average if meas within 0.5° and within 5 minutes
-            meas_id=1
-            meas_id_array=np.zeros(len(data.sounding_dim))
-            meas_id_array[0]=meas_id
-            for i in range(1,len(data.sounding_dim)):
-                dlon=np.abs(data.longitude.values[i]-data.longitude.values[i-1])
-                dlat=np.abs(data.latitude.values[i]-data.latitude.values[i-1])
-                dt=np.abs(np.datetime64(data.time.values[i])-np.datetime64(data.time.values[i-1]))
-                if dlon>0.5 or dlat>0.5 or dt>np.timedelta64(5,'m'):
-                    meas_id+=1
-                meas_id_array[i]=meas_id        
-            # print(meas_id_array)                
             # drop all variables with dependencies other than soundig_dim
             # TODO nachfragen variable gain
-            data_df=data.drop_vars(['co2_profile_apriori','ch4_profile_apriori','dry_airmass_layer','pressure_levels','xco2_averaging_kernel','xch4_averaging_kernel','gain']).to_dataframe()
-            data_df['meas_id']=meas_id_array
-            data_df=data_df.groupby(['meas_id']).mean()
+            data_df=data[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels']]
+            #data_df=data.drop_vars(['co2_profile_apriori','ch4_profile_apriori','dry_airmass_layer','xch4_averaging_kernel','gain']).to_dataframe()
             date_str=pd.to_datetime(data.time.values[0]).strftime('%Y%m%d')
-            filename=outdir+outfile+f'_{date_str}.csv' # add date string to filename
-            data_df.to_csv(filename, columns=['time','latitude','longitude','xco2', 'xco2_err'],index=False)   #,mode='a',header=(not exists(filename)))  # append to file if already exists if meas for multiple day in one .csv file
-            print(f'saved sounding positions for region in: {filename}')
+            directory=f"{outdir}/{pd.to_datetime(data.time.values[0]).strftime('%Y_%m')}/"
+            if not exists(directory):
+                makedirs(directory)
+            filename=f"{directory}/{outfile}_{date_str}.nc"
+            if AVERAGE_MEAS:
+                # average if meas within 0.5° and within 5 minutes
+                meas_id=1
+                meas_id_array=np.zeros(len(data.sounding_dim))
+                meas_id_array[0]=meas_id
+                for i in range(1,len(data.sounding_dim)):
+                    dlon=np.abs(data.longitude.values[i]-data.longitude.values[i-1])
+                    dlat=np.abs(data.latitude.values[i]-data.latitude.values[i-1])
+                    dt=np.abs(np.datetime64(data.time.values[i])-np.datetime64(data.time.values[i-1]))
+                    if dlon>0.5 or dlat>0.5 or dt>np.timedelta64(5,'m'):
+                        meas_id+=1
+                    meas_id_array[i]=meas_id        
+                data_df['meas_id']=meas_id_array
+                data_df=data_df.groupby(['meas_id']).mean()
+                filename=f"{outdir}{outfile}_{date_str}_mean.nc"
+
+             # add date string to filename
+            print(f'saved sounding positions for region to: {filename}')
+            data_df.to_netcdf(filename)
+            #filename=outdir+outfile+f'_{date_str}.csv' # add date string to filename
+            #data_df.to_csv(filename, columns=['time','latitude','longitude','xco2', 'xco2_err'],index=False)   #,mode='a',header=(not exists(filename)))  # append to file if already exists if meas for multiple day in one .csv file
+            #print(f'saved sounding positions for region in: {filename}')
     return
 
 def write_GOSATpositions_RemoTeC240(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_max,outdir,start_date,end_date,outfile='RemoTeCv2.4.0', AVERAGE_MEAS=False): 
@@ -96,7 +107,7 @@ def write_GOSATpositions_RemoTeC240(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
             ds=xr.open_dataset(f'{GOSAT_dir}/fp_short_fil_corr_201202_{y}.nc')
             ds_list.append(ds)
         ds=xr.concat(ds_list, dim='sounding_dim')
-    ds=ds.assign_coords(time=ds.time, latitude=ds.latitude, longitude=ds.longitude).drop_dims(['layer_dim', 'level_dim'])
+    ds=ds.assign_coords(time=ds.time, latitude=ds.latitude, longitude=ds.longitude)
     # only use data over land and nadir and cut box
     ds=ds.where((ds.flag_landtype==0) & (ds.flag_sunglint==0) & (ds.latitude>Lat_min) & (ds.latitude<Lat_max) & (ds.longitude>Long_min) & (ds.longitude<Long_max),drop=True)
     val=0
@@ -104,13 +115,12 @@ def write_GOSATpositions_RemoTeC240(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
     for date in pd.date_range(start_date, end_date):
         ds_sel=ds.where(ds.time.dt.date==date.date(), drop=True)
         if ds_sel.sounding_dim.size>0:
-            data_df=ds_sel[['time','latitude','longitude','xco2', 'xco2_err']].to_dataframe()
+            data_df=ds_sel[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels']]
             # check if output dir exists
             if not isdir(f"{outdir}{date.strftime('%Y_%m')}"):
                 makedirs(f"{outdir}{date.strftime('%Y_%m')}")
                 print(f"created directory: {outdir}{date.strftime('%Y_%m')}")
-            filename=f"{outdir}{date.strftime('%Y_%m')}/{outfile}_{date.strftime('%Y%m%d')}.csv" # add date string to filename
-            
+            filename=f"{outdir}{date.strftime('%Y_%m')}/{outfile}_{date.strftime('%Y%m%d')}.nc" # add date string to filename
             # average over measurements that are close together
             if AVERAGE_MEAS:
                 meas_id=1
@@ -126,9 +136,9 @@ def write_GOSATpositions_RemoTeC240(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
                     meas_id_array[i]=meas_id
                 data_df['meas_id']=meas_id_array
                 data_df=data_df.groupby(['meas_id']).mean()
-                filename=f"{outdir}{outfile}_{date.strftime('%Y%m%d')}_mean.csv" # add date string to filename
+                filename=f"{outdir}{outfile}_{date.strftime('%Y%m%d')}_mean.nc" # add date string to filename
             print(f'saved sounding positions for region to: {filename}')
-            data_df.to_csv(filename, index=False)
+            data_df.to_netcdf(filename)
 
 #########################################################################################
 
