@@ -16,13 +16,13 @@ import argparse
 
 
 # get measurements
-def get_gosat_measurement_array(start_date, end_date, data_dir, TM5_bg_ds='RemoTeC_2.4.0+IS'):
+def get_gosat_measurement_array(start_date, end_date, data_dir,BG="TM5", bg_ds='RemoTeC_2.4.0+IS'):
     '''
     Args:
         start_date: start date of measurements that are used
         end_date: end date of measurements that are used
         data_path: path to the directory containing the TM5-4DVar estimates and backgrounds
-        TM5_bg_ds: string defining which TM5-4DVar dataset should be used for the background, defaults to RemoTeC_2.4.0+IS
+        bg_ds: string defining which TM5-4DVar dataset should be used for the background, defaults to RemoTeC_2.4.0+IS
     Returns:
         measurements: array of GOSAT_xco2 - background 
         measurement_covariance: array of GOSAT_xco2_err**2
@@ -40,11 +40,11 @@ def get_gosat_measurement_array(start_date, end_date, data_dir, TM5_bg_ds='RemoT
                 gosat_data=pd.concat([gosat_data,data])
     gosat_data=gosat_data.reset_index(names='release_num')
     # measurement vector = gosat xco2 - background
-    measurements=(gosat_data.xco2-gosat_data[f'TM5_{TM5_bg_ds}_background']).values
+    measurements=(gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']).values
     # measurement error
     measurement_covariance=(gosat_data.xco2_err**2).values
     return measurements, measurement_covariance
-def get_is_measurement_array(start_date, end_date, data_dir, bg_ds='RemoTeC_2.4.0+IS'):
+def get_is_measurement_array(start_date, end_date, data_dir,BG="TM5", bg_ds='RemoTeC_2.4.0+IS'):
     '''
     Args:
         start_date: start date of measurements that are used
@@ -66,7 +66,7 @@ def get_is_measurement_array(start_date, end_date, data_dir, bg_ds='RemoTeC_2.4.
     is_data=pd.concat(data_list)
     is_data=is_data.reset_index(names='release_num')
     # measurement vector = gosat xco2 - background
-    measurements=(is_data['co2_val[ppm]']-is_data[f'TM5_{bg_ds}_background']).values
+    measurements=(is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']).values
     return measurements
 # get prior and prior covariance
 def get_weekly_priors_from_flux(flux_path, start_date, end_date):
@@ -410,22 +410,26 @@ if __name__ == "__main__":
             # is_data['y_offset']=(is_data.spec001_mr*x_offset).sum(dim=['time', 'latitude', 'longitude'])
             # gosat_data['y_offset']=(gosat_data.spec001_mr*x_offset).sum(dim=['time', 'latitude', 'longitude'])
             # add y_offset to meas data
-            gosat_meas = (gosat_data.xco2-gosat_data[f'TM5_{bg_ds}_background']+gosat_data.y_offset).values
-            is_meas = (is_data['co2_val[ppm]']-is_data[f'TM5_{bg_ds}_background']+is_data.y_offset).values
+            gosat_meas = (gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']+gosat_data.y_offset).values
+            is_meas = (is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']+is_data.y_offset).values
         elif WITH_GAMMA_OFFSET:
             # get y_offset
             is_data['y_offset']=(is_data.spec001_mr_scaled_gamma*x_offset).sum(dim=['time', 'latitude', 'longitude'])
             gosat_data['y_offset']=(gosat_data.spec001_mr_scaled_gamma*x_offset).sum(dim=['time', 'latitude', 'longitude'])
             # add y_offset to meas data
-            gosat_meas = (gosat_data.xco2-gosat_data[f'TM5_{bg_ds}_background']+gosat_data.y_offset).values
-            is_meas = (is_data['co2_val[ppm]']-is_data[f'TM5_{bg_ds}_background']+is_data.y_offset).values
+            gosat_meas = (gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']+gosat_data.y_offset).values
+            is_meas = (is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']+is_data.y_offset).values
         else:   # without measurements
-            gosat_meas = (gosat_data.xco2-gosat_data[f'TM5_{bg_ds}_background']).values
-            is_meas = (is_data['co2_val[ppm]']-is_data[f'TM5_{bg_ds}_background']).values
-            
+            gosat_meas = (gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']).values
+            is_meas = (is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']).values
+        '''
+        elif WITH_ADDITIVE_DIURNAL:
+            gosat_meas = (gosat_data['xco2_with_diurnal_offset']-gosat_data[f'TM5_{bg_ds}_background']).values
+            is_meas = (is_data['co2_with_diurnal_offset']-is_data[f'TM5_{bg_ds}_background']).values'''    
+        
         # combine measurement arrays
         measurements=np.append(gosat_meas, is_meas)
-        
+        #measurements=is_meas
         # read priors
         flat_prior, TM5_prior, weekly_prior=get_weekly_priors_from_flux(flux_path, start_date, end_date)
         # get prior covariance from prior flux
@@ -442,10 +446,10 @@ if __name__ == "__main__":
                 print(f'read cov matrix from {cov_path}')
             else:
                 if corr_str=='with':
-                    print('geting cov matrix')
+                    print('getting cov matrix')
                     prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0.005)
                 elif corr_str=='no':
-                    print('geting prior variance')
+                    print('getting prior variance')
                     prior_cov = get_prior_var_no_correlation_from_weekly_prior(weekly_prior)
                     import sparse
                     prior_cov=(sparse.COO.from_scipy_sparse(prior_cov)).todense()
@@ -469,6 +473,7 @@ if __name__ == "__main__":
                 
                 # combine footprints, pointspec dim=first all gosat, then all insitu
                 footprints=xr.concat([gosat_footprints, is_footprints], dim='pointspec')
+                #footprints=is_footprints
                 footprints=footprints.stack(grid_box=("time","latitude", "longitude")).squeeze()
             
                 for gosat_meas_err in gosat_meas_err_list:
@@ -479,6 +484,15 @@ if __name__ == "__main__":
                         sdir=sdir[:-1]+f'_offset_{x_offset}/'
                     if WITH_GAMMA_OFFSET:
                         sdir=sdir[:-1]+f'_gamma_offset_{x_offset}/'
+                    '''
+                    if WITH_ADDITIVE_DIURNAL:
+                        is_diurnal=is_data[[f_additive_diurnal]]
+                        gosat_diurnal=gosat_data[[f_additive_diurnal]]
+                        footprints_diurnal=xr.concat([gosat_diurnal,is_diurnal],dim='pointspec')
+                        footprints_diurnal=footprints_diurnal.stack(grid_box=("time","latitude", "longitude")).squeeze()
+                        footprints_diurnal=footprints_diurnal.sum('grid_box')
+                        measurements=measurements-footprints_diurnal[f_additive_diurnal].values
+                    '''
                     for meas_err_val in meas_err_list:        # 0.01, 0.1, 0.5, 1,2,5
                         print(f'meas_err_val: {meas_err_val}')
                         if not os.path.isdir(f"{sdir}/{meas_err_val}ppm_insitu_meas_err"):
@@ -487,6 +501,7 @@ if __name__ == "__main__":
                         # measurement_covariance
                         # insitu meas error
                         measurement_covariance=np.append(np.ones(gosat_meas.shape)*gosat_meas_err, np.ones(is_meas.shape)*meas_err_val)
+                        #measurement_covariance=np.ones(is_meas.shape)*meas_err_val
                         print(measurement_covariance)
                         # run inverion, save dataset
                         spath=f"{sdir}/{meas_err_val}ppm_insitu_meas_err/{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}_{bg_ds}_bg.nc"

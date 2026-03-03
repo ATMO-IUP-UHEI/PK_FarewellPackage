@@ -1,23 +1,24 @@
 # config file for inversion run
 
 # define time range of measurements
-start_date: "2010-06-01"
-end_date: "2010-06-06"
+start_date: "2010-08-01"
+end_date: "2010-11-03"
 
-output_dir: "/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/"
+output_dir: "/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/"
 
 res_list: [2]       # spatial resolution in °, eg 2 for 2x2°
-corr_list: ['with']   # with/ no correlation
+corr_list: ['with','no']   # 'with'/ 'no' correlation
 # list of measurement errors
-gosat_meas_err_list: [1,2]
-meas_err_list: [2]
+gosat_meas_err_list: [0.5,1,2] #,3,5,10]
+meas_err_list: [0.5,1,2] #,3,5,10]
 # list of footprints
-f_list: ['spec001_mr_scaled']   # 'spec001_mr' for unscaled footprints
-scaling_subdirectory: "prep_footprints/scaled_weekly/"    # subdirectory in output_dir/insitu or output_dir/RemoTeCv240 directory where weekly footprint files are saved
+f_list: ['spec001_mr']   # 'spec001_mr' for unscaled footprints
+scaling_subdirectory: "prep_footprints/diurnal_amplitude_weekly/"    # subdirectory in output_dir/insitu or output_dir/RemoTeCv240 directory where weekly footprint files are saved
 
 # dataset used for the background
 # bg_ds: "IS"
-bg_ds: "RemoTeC_2.4.0+IS"
+BG: "CAMS"   # "TM5" or "CAMS"
+bg_ds: "satellite" #"RemoTeC_2.4.0+IS"
 
 WITH_FLAT: False # if True, runs additional inversion with flat prior
 SAVE_AK: False    # saves entire averaging kernel and posterior convariance matrix if set to True, just diagonal otherwise
@@ -28,10 +29,12 @@ FILTER_GOSAT_MEAS: False    # set to True, if only use Gosat meas if there are m
 
 SMALER_MEAS_AREA: False       # only include measurements for a smaller area (not used in final inversion setup)
 # if True define interp_region
-# interp_region: [20,48,-126,-70]       # lat_min, lat_max, lon_min, lon_max
+#interp_region: [20,48,-126,-70]       # lat_min, lat_max, lon_min, lon_max
 
 # TODO delete this?
 # if using these, have to adapt footprint scaling paths in run_inversion.py
 WITH_OFFSET: False          # add offset to inversion, for different diurnal cycle scaling approach
 WITH_GAMMA_OFFSET: False
 # x_offset: 6.e-7       # need decimal point to ensure its processed as a float
+WITH_ADDITIVE_DIURNAL: True
+f_additive_diurnal: 'spec001_mr_diurnal_amplitude'   # 'spec001_mr' for unscaled footprints
