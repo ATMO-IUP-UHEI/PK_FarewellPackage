@@ -18,7 +18,7 @@ def read_grid_time_file(path):
         if file.startswith('grid_time_'):
             filepath=path+file
             print('filepath: {}'.format(filepath))
-    return xr.open_dataset(filepath, chunks="auto") 
+    return xr.open_dataset(filepath, chunks="auto", decode_timedelta=True) 
 
 def check_succesfull_footprints(start_date, end_date, data_dir):
     ''' Check if all footprints were calculated succesfully
