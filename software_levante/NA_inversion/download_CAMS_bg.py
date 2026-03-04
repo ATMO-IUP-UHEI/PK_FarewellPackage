@@ -3,6 +3,9 @@
 #   url: https://ads.atmosphere.copernicus.eu/api
 #   key: cad840ed-3c1f-4249-9901-b2f93d9886b5
 
+# you can unzip the resulting files all at once using the following command while in the folder with the files.
+# for z in cams_co2_*; do echo "$z"; done
+
 import cdsapi
 
 for l in ["2020","2021","2022"]:
