@@ -1,7 +1,7 @@
 import os
 import xarray as xr
 import numpy as np
-from distutils.dir_util import copy_tree
+from distutils.dir_util import copy_tree  # for some python versions install with pip install setuptools
 import yaml
 import create_part_init
 import click
