@@ -220,13 +220,13 @@ def plot_meas_station_map(path, region, sfig_path='is_meas_map.png'):
 
 if __name__ == '__main__':
     flexpart_region=[12,56,-134,-62]  # lat_min, lat_max, lon_min, lon_max
-    start_date=dt.date(2010,6,1)
-    end_date=dt.date(2010,6,30)      # including end_date
+    start_date=dt.date(2010,7,27)
+    end_date=dt.date(2010,11,3)      # including end_date
     # path to obspack data
-    obspack_path='/net/dsvr-02/mnt/data2/users/eschoema/ObsPack/obspack_co2_1_GLOBALVIEWplus_v5.0_2019-08-12/data/nc/'
+    obspack_path='/work/bb1170/RUN/b383736/data/Atmo/ObsPack/'
     
     # select time period, region, highest towe inlet
-    sel_sdir='/home/pkuehn/data/ObsPack/test/test_sel/'
+    sel_sdir='/work/bb1170/RUN/b383736/data/ObsPack/PK_test/test_sel/'
     if not os.path.isdir(sel_sdir):
         os.makedirs(sel_sdir)
     sel_stations(obspack_path,flexpart_region, start_date, end_date, sel_sdir)
@@ -237,13 +237,13 @@ if __name__ == '__main__':
     # mountain for elevation > 1100 masl
     h_lim=1100  #masl
     # path to save 4h mean values
-    mean_sdir='/home/pkuehn/data/ObsPack/test/test_mean/'
+    mean_sdir='/work/bb1170/RUN/b383736/data/ObsPack/PK_test/test_mean/'
     if not os.path.isdir(mean_sdir):
         os.makedirs(mean_sdir)
     get_4h_mean_stations(sel_sdir, mean_sdir, h_lim)
     
     # combine individual station files to one dataset
-    spath=f'/home/pkuehn/data/ObsPack/test/test_lat{flexpart_region[0]}_{flexpart_region[1]}_lon{flexpart_region[2]}_{flexpart_region[3]}sel_mean_combined.nc'
+    spath=f'/work/bb1170/RUN/b383736/data/ObsPack/PK_test/test_lat{flexpart_region[0]}_{flexpart_region[1]}_lon{flexpart_region[2]}_{flexpart_region[3]}sel_mean_combined.nc'
     files=[f for f in os.listdir(mean_sdir) if f.endswith('.nc')]
     ds_list=[]
     for f in files:
@@ -254,5 +254,5 @@ if __name__ == '__main__':
         ds_list.append(ds)
     ds=xr.concat(ds_list, dim='file')
     ds.to_netcdf(spath)
-    return
+    #return
 
