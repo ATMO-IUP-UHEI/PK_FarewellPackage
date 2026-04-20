@@ -20,7 +20,7 @@ inversion_subdirectory: "/inversions_TM5_2nee_only_gosat/"
 # dataset used for the background
 # bg_ds: "IS"
 BG: "TM5"   # "TM5" or "CAMS"
-bg_ds: 'RemoTeC_2.4.1+IS-land_ocean_bc' #"RemoTeC_2.4.1+IS-land_ocean_bc" #"RemoTeC_2.4.0+IS" # "satellite"
+bg_ds: "RemoTeC_2.4.1+IS-land_ocean_bc"  # 'satellite' #"RemoTeC_2.4.1+IS-land_ocean_bc" #"RemoTeC_2.4.0+IS"
 
 WITH_FLAT: False # if True, runs additional inversion with flat prior
 SAVE_AK: False    # saves entire averaging kernel and posterior convariance matrix if set to True, just diagonal otherwise
