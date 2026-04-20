@@ -1,11 +1,11 @@
 # Config for script to automate conversion of ERA5 spectral files (into flex_extract download files )
 
 # Start date in format yyyymmdd.
-startdate: '20100920'
+startdate: '20190701'
 # Stop date in format yyyymmdd.
-stopdate: '20101219'
+stopdate: '20190930'
 # Path to output folder
-outpath: /work/bb1170/RUN/b382762/data/ERA5_daten/test_2010/temp/
+outpath: /work/bb1170/RUN/b383736/data/ERA5_daten/2020/05/temp/
 
 # time resolution '1H', '1D', '1M', 'IV' 
 timeres: '1H'
@@ -32,6 +32,6 @@ idnum:
 
 # optional for FLEXPART preprocessing, create CONTROL file
 # control dummy path
-control_dummy_path: '/work/bb1170/RUN/b382762/FarewellPackage/convertERA5/convertERA5/config/CONTROL_EA5_dummy'
+control_dummy_path: '/work/bb1170/RUN/b383736/software/test_PK/PK_FarewellPackage/software_levante/convert_era5/convert_era5/config/CONTROL_EA5_dummy'
 # control outpath
-control_outpath: '/work/bb1170/RUN/b382762/data/ERA5_daten/test_2010/'
+control_outpath: '/work/bb1170/RUN/b383736/data/ERA5_daten/2020/05/'

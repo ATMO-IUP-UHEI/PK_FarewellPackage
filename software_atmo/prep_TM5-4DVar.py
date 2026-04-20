@@ -171,16 +171,16 @@ if __name__ == "__main__":
     # get diurnal cycle scaling factors
     flexpart_region=[12,56,-134,-62]       # lat_min, lat_max, lon_min, lon_max
     # read data for entire period
-    start_date=dt.date(2009,10,1)
-    end_date=dt.date(2011,3,31)
+    start_date=dt.date(2020,9,1)
+    end_date=dt.date(2022,3,31)
     # path to 3hrly prior data
     dir_path='/mnt/data/users/eschoema/TM5Inversion/3h_fluxes/three_hourly_flux/RemoTeC+IS (lo)/apri/'
     # path to save 3hrly weakly mean scaling
     scaling_path=f'/home/pkuehn/data/TM5Inversion/weekly_mean_prior_scaling_RemoTeC+IS.nc'
-    get_scaling_factors(flexpart_region, start_date, end_date, dir_path, scaling_path)
+    #get_scaling_factors(flexpart_region, start_date, end_date, dir_path, scaling_path)
     # path to save hourly interpolated scaling factors
     spath="/home/pkuehn/data/TM5Inversion/high_res_total_scaling_RemoTeC+IS.nc"
-    interpolate_total_scaling(scaling_path, spath)
+    #interpolate_total_scaling(scaling_path, spath)
     
     # get cut molefraction fields
     # TODO check which are bias corected
@@ -190,16 +190,16 @@ if __name__ == "__main__":
     Lat_min,Lat_max=2,66
     Long_min,Long_max=-146, -50
     # select year and month
-    start_date=dt.date(2009,1,1)
-    end_date=dt.date(2011,12,31)
-    sdir='/home/pkuehn/data/TM5Inversion/xco2_mean_flexpart_region/'
+    start_date=dt.date(2020,9,1)
+    end_date=dt.date(2022,3,31)
+    sdir='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/TM5_molfractions/'
 
-    for Dtype in Dtypes:            
-        path=f'/mnt/data/users/eschoema/TK5_4DVAR/Molefractions/{Dtype}/output/2009010100-2019070100/mix/'
-        spath=f'{sdir}{Dtype}/'
-        print(spath)
-        # os.mkdir(spath)
-        for date in pd.date_range(start_date, end_date):
-            filepath=path+f"{date.strftime('%Y')}/{date.strftime('%m')}/mix_{date.strftime('%Y%m%d')}.nc4"
-            CutAndGetPressuresTM5mix(filepath, spath, date.strftime('%Y%m%d'))
+    #for Dtype in Dtypes:            
+    path=f'/work/bb1170/RUN/b383736/data/TM5-4DVar_molefraction/RemoTeC_2.4.1+IS-land_ocean_bc/output/2009010100-2023090100/mix/'
+    spath=f'{sdir}/'
+    print(spath)
+    # os.mkdir(spath)
+    for date in pd.date_range(start_date, end_date):
+        filepath=path+f"{date.strftime('%Y')}/{date.strftime('%m')}/mix_{date.strftime('%Y%m%d')}.nc4"
+        CutAndGetPressuresTM5mix(filepath,[Lat_min, Lat_max, Long_min,Long_max], spath, date.strftime('%Y%m%d'))
     

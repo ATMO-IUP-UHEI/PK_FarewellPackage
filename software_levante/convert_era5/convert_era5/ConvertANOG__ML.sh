@@ -13,7 +13,7 @@
 #conda deactivate
 source /sw/spack-levante/mambaforge-4.11.0-0-Linux-x86_64-sobz6z/etc/profile.d/conda.sh
 conda deactivate
-conda activate metview
+conda activate test
   
 echo $CONDA_PREFIX
 

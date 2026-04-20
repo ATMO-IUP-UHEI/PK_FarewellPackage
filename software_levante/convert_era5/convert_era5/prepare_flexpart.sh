@@ -15,33 +15,33 @@
 # to start this script you need to have metview installed (conda install metview -c conda-forge, conda install metview-python -c conda-forge)
 # start this script with: sbatch prepare_flexpart.sh
 eval "$(conda shell.bash hook)"     # activate conda env
-conda activate flex
+conda activate test
 
 # paths and variables
-START_DATE=20110202
-END_DATE=20110301
-CONFIG_PATH="/work/bb1170/RUN/b382762/software/ERA5download/convertERA5/convertERA5/config/config_2011.yaml"
-CONTROLFILE_PATH=/work/bb1170/RUN/b382762/data/ERA5_daten/test/2011_02/CONTROL
-OUTPUT_PATH=/work/bb1170/RUN/b382762/data/ERA5_daten/test/2011_02
+START_DATE=20190701
+END_DATE=20190930
+CONFIG_PATH="/work/bb1170/RUN/b383736/software/test_PK/PK_FarewellPackage/software_levante/convert_era5/convert_era5/config/config_2010.yaml"
+CONTROLFILE_PATH=/work/bb1170/RUN/b383736/data/ERA5_daten/2020/05/CONTROL
+OUTPUT_PATH=/work/bb1170/RUN/b383736/data/ERA5_daten/2020/05/
 
 # echo $START_DATE
 
 # metview conversion
 echo "starting metview"
 echo $CONFIG_PATH
-export METVIEW_PYTHON_START_TIMEOUT=100
+export METVIEW_PYTHON_START_TIMEOUT=300
 python convert_era5_dkrz_ml_v6.py --config_path $CONFIG_PATH
 
 # TODO add check to see if restartAnog folder is empty, otherwise need to rerun the metview skript
 
 # flex_extract preprocessing
-cd /work/bb1170/RUN/b382762/software/flex_extract/Source/Python/Mods
+cd /work/bb1170/RUN/b383736/software/flex_extract/Source/Python/Mods
 pwd
 echo "starting prepare_flexpart.py"
 python prepare_flexpart.py --start_date $START_DATE --end_date $END_DATE --controlfile $CONTROLFILE_PATH --inputdir "$OUTPUT_PATH"/temp --ppid 660332
 # TODO read dates and controlfile path from config file
 
 # resorting EA files
-cd /work/bb1170/RUN/b382762/software/ERA5download/convertERA5/convertERA5/
+cd /work/bb1170/RUN/b383736/software/test_PK/PK_FarewellPackage/software_levante/convert_era5/convert_era5/
 echo "starting resorting EA files"
 sbatch --export=EAfolderpath="$OUTPUT_PATH"/temp/,outfile="$OUTPUT_PATH/",year='',month='',day='' Bulkstart_prepare_EA_files.sh
