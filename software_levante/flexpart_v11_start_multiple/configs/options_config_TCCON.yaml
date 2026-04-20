@@ -1,0 +1,20 @@
+# Total column release specification
+
+# Path to options dummy directory
+options_dummy_path: '/work/bb1170/RUN/b383736/software/test_PK/PK_FarewellPackage/software_levante/flexpart_v11_start_multiple/configs/options_dummy'
+# Path to output directory, will create subdirectory for each release day
+output_path: "/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/TCCON/" # if change RemoTeCv240 name here, need to adapt that in following steps
+# Path to directory of ERA5 input files
+input_paths: '/work/bb1170/RUN/b383736/data/ERA5_daten/2021/'
+# Path to AVALILABLE file for data
+available_paths: '/work/bb1170/RUN/b383736/data/ERA5_daten/2021/AVAILABLE'
+
+# Run specifications for total column release
+part_init_config_path: /work/bb1170/RUN/b383736/software/test_PK/PK_FarewellPackage/software_levante/flexpart_v11_start_multiple/configs/part_init_config.yaml
+# Simulation time in days
+sim_length: 10
+
+# path to directory containing satelites position.csv with subdirectories %Y_%m
+TCCON_measurements_path: '/work/bb1170/RUN/b383736/data/Flexpart_2021/measurements/TCCON/'   # if used release_ids and sim_start will be ignored
+startdate: '20201001' # TODO schönere implementierung, gerade sehr umständlich
+enddate: '20220331'

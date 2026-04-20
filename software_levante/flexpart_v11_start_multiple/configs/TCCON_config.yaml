@@ -1,0 +1,15 @@
+# path to directory containing the GOSAT files
+data_dir: '/work/bb1170/RUN/b383736/data/TCCON/TCCON_data/'
+sites_path: '/work/bb1170/RUN/b383736/data/TCCON/sites.json'
+
+# flexpart region 
+Lat_min: 12
+Lat_max: 56
+Long_min: -134
+Long_max: -62
+
+# optional
+# output directory for gosat.csv files, if None, will be placed in GOSAT_dir
+outdir: '/work/bb1170/RUN/b383736/data/Flexpart_2021/measurements/TCCON/'
+startdate:  '20201001'  # start date in format: yyyymmdd
+enddate:    '20220331'  # end date in format: yyyymmdd

@@ -55,7 +55,7 @@ def write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
             data=data.where((data.longitude<Long_max), drop=True)
             # drop all variables with dependencies other than soundig_dim
             # TODO nachfragen variable gain
-            data_df=data[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels']]
+            data_df=data[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels','co2_column_apriori','co2_profile_apriori']]
             #data_df=data.drop_vars(['co2_profile_apriori','ch4_profile_apriori','dry_airmass_layer','xch4_averaging_kernel','gain']).to_dataframe()
             date_str=pd.to_datetime(data.time.values[0]).strftime('%Y%m%d')
             directory=f"{outdir}/{pd.to_datetime(data.time.values[0]).strftime('%Y_%m')}/"
@@ -115,7 +115,7 @@ def write_GOSATpositions_RemoTeC240(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
     for date in pd.date_range(start_date, end_date):
         ds_sel=ds.where(ds.time.dt.date==date.date(), drop=True)
         if ds_sel.sounding_dim.size>0:
-            data_df=ds_sel[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels']]
+            data_df=ds_sel[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels','co2_column_apriori','co2_profile_apriori']]
             # check if output dir exists
             if not isdir(f"{outdir}{date.strftime('%Y_%m')}"):
                 makedirs(f"{outdir}{date.strftime('%Y_%m')}")

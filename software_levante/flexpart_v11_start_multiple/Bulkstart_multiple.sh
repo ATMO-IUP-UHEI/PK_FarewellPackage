@@ -11,12 +11,16 @@
 
 # run with sbatch Bulkstart_multiple.sh
 # list of months, format XX
-for month in 07 08 09 10 11
+for month in 01 02 03 # 01 02 03 04 05 06 07 08 09 10 11 12
 do
     for i in 0  # list number of pathnames directories
     do
         # gosat releases
-        pathnames_dir=/work/bb1170/RUN/b383736/data/PK_Flexpart/2months/RemoTeCv240/2010_${month}/config/pathnames_${i}
+        pathnames_dir=/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/RemoTeCv240/2022_${month}/config/pathnames_${i}
+        echo starting $pathnames_dir
+        sbatch slurm_start_multiple.sh $pathnames_dir
+        # TCCON releases
+        pathnames_dir=/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/TCCON/2022_${month}/config/pathnames
         echo starting $pathnames_dir
         sbatch slurm_start_multiple.sh $pathnames_dir
         # insitu releases
