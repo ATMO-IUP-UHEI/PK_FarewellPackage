@@ -113,7 +113,7 @@ def haversine(lat1, lon1, lat2, lon2):
     Args:
         lat1, lon1: latitude & longitude of first point
         lat2, lon2: latitude & longitude of second point
-    Returns: geodesic distance (float)
+    Returns: geodesic distance (float) in km
     '''
     R = 6371  # Radius of Earth in km
     lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])

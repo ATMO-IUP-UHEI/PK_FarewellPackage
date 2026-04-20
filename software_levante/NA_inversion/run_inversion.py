@@ -13,7 +13,9 @@ from scipy.spatial.distance import pdist, squareform
 from utils import get_start_date_of_week, haversine, get_unique_time
 import yaml
 import argparse
-
+import json
+import random
+import matplotlib.pyplot as plt
 
 # get measurements
 def get_gosat_measurement_array(start_date, end_date, data_dir,BG="TM5", bg_ds='RemoTeC_2.4.0+IS'):
@@ -81,7 +83,7 @@ def get_weekly_priors_from_flux(flux_path, start_date, end_date):
         TM5_prior: array of length of spatial res*number of weeks, with TM5-4DVar flux for each week
         prior_flux_sel: weekly prior
     '''
-    
+    print('DEBUG calculating prior from flux_path')
     # footprints start 10 days before startdate
     f_start=start_date-dt.timedelta(days=10)
     # get first day of the week containing the start of footprints
@@ -113,7 +115,7 @@ def get_weekly_priors_from_flux(flux_path, start_date, end_date):
     TM5_prior=prior_flux_sel.total_flux.values.flatten()
     
     return flat_prior, TM5_prior, prior_flux_sel
-def get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0.005):
+def get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0.005,corr='both'):
     ''' 
     Args:
         weekly_prior: prior fluxes, with dimesion already stacked (.stack(grid_box=("time","latitude", "longitude")).squeeze())
@@ -124,21 +126,21 @@ def get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0
     Retruns:
         prior_cov: covariance matrix
     '''
-
-    T=(T*30.437)    # months -> days
-    # get time differces
-    t_vals=np.array(weekly_prior.time.values, dtype='datetime64[D]')
-    # C_T(t1,t2)= exp(-|t1-t2|/T)
-    C_T=np.exp(-np.abs(t_vals[:, None] - t_vals[None, :])/ np.timedelta64(1, 'D')/T)
-
-    # get spatial distances
-    lat_vals = weekly_prior.latitude.values
-    lon_vals = weekly_prior.longitude.values
-    # Compute geodesic distances vectorized
-    latlon_pairs = np.column_stack([lat_vals, lon_vals])
-    # C_r(r1,r2)= exp(-|r1-r2|/L)
-    C_r = np.exp(-squareform(pdist(latlon_pairs, metric=lambda u, v: haversine(u[0], u[1], v[0], v[1])))/L)
-    
+    if corr=='both' or corr=='temporal':
+        
+        T=(T*30.437)    # months -> days
+        # get time differces
+        t_vals=np.array(weekly_prior.time.values, dtype='datetime64[D]')
+        # C_T(t1,t2)= exp(-|t1-t2|/T)
+        C_T=np.exp(-np.abs(t_vals[:, None] - t_vals[None, :])/ np.timedelta64(1, 'D')/T)
+    if corr=='both' or corr=='spatial':
+        # get spatial distances
+        lat_vals = weekly_prior.latitude.values
+        lon_vals = weekly_prior.longitude.values
+        # Compute geodesic distances vectorized
+        latlon_pairs = np.column_stack([lat_vals, lon_vals])
+        # C_r(r1,r2)= exp(-|r1-r2|/L)
+        C_r = np.exp(-squareform(pdist(latlon_pairs, metric=lambda u, v: haversine(u[0], u[1], v[0], v[1])))/L)
     # get prior uncertainties
     weekly_prior['prior_min'] =(prior_min/weekly_prior.grid_cell_area).assign_attrs(units='kg_CO2/(m^2 s)') # 1/grid_box = 1/a 1/m^2
     # returns max val of weekly_prior.total_flux*epsilon and weekly_prior.prior_min
@@ -146,8 +148,19 @@ def get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0
     # prior covariance
     # cov (x_r1,t1, x_r2,t2)=sig_r1,t1 * sig_r1,t2 * C_r(r1,r2) * C_T(t1,t2)
     # prior_var = sig_r1,t1 * sig_r1,t2
-    prior_var=((np.array([weekly_prior['prior_std'].values])*(np.array([weekly_prior['prior_std'].values]).T)))
-    prior_cov=np.multiply(prior_var,np.multiply(C_r, C_T)) 
+    prior_var=((np.array(weekly_prior['prior_std'].values)*(np.array(weekly_prior['prior_std'].values).T)))
+    prior_var=np.eye(len(prior_var))*prior_var
+    #prior_cov=np.matmul(prior_var,np.multiply(C_r, C_T)) 
+    # matmul: matrix multiplication
+    # multiply elementwise multiplication 
+    # total correlation C(x_r1,t1, x_r2,t2)= C_r(r1,t1,r2,t2) * C_T(r1,t1,r2,t2) (elementwise multiplication)
+    # covariance: cov (x_r1,t1, x_r2,t2)=sig_r1,t1  * C(r1,t1,r2,t2)* sig_r2,t2 = Sig * C * Sig
+    if corr=='both':
+        prior_cov=np.matmul(np.diag(weekly_prior.prior_std.values),np.matmul(np.multiply(C_r,C_T), np.diag(weekly_prior.prior_std.values)))
+    if corr=='temporal':
+        prior_cov=np.matmul(np.diag(weekly_prior.prior_std.values),np.matmul(C_T, np.diag(weekly_prior.prior_std.values)))
+    if corr=='spatial':
+        prior_cov=np.matmul(np.diag(weekly_prior.prior_std.values),np.matmul(C_r, np.diag(weekly_prior.prior_std.values)))
     return prior_cov
 def get_prior_var_no_correlation_from_weekly_prior(weekly_prior, epsilon=0.84, prior_min=0.005):
     ''' Get prior variance from weekly prior fluxes, no correlation 
@@ -295,9 +308,9 @@ def run_inv(TM5_4DVar_prior, prior_covariance, measurements,measurement_covarian
             meas_num=np.arange(0,measurements.size,step=1),
         ))
     ds=ds.unstack(dim='grid_box')
+    plot_prior(ds.TM5_prior_flux,name='TM5_prior_after_inversion',spath=spath[:-33])
     ds.to_netcdf(spath)
     print(f'saved dataset to: {spath}')
-    
     if SAVE_AK:
         # get temporal mean of ak and posterior cov
         ak_ds=xr.Dataset(data_vars=dict(
@@ -325,6 +338,54 @@ def run_inv(TM5_4DVar_prior, prior_covariance, measurements,measurement_covarian
         print('successfull')
     return
 
+def plot_prior(prior,flattened=False,prior_not_flattened=None,name='prior_flux.png',spath='/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/figures/'):
+    if flattened:
+        dims=['time','latitude','longitude']
+        coords = {
+            'time': prior_not_flattened.time.values,  
+            'latitude': prior_not_flattened.latitude.values,
+            'longitude': prior_not_flattened.longitude.values
+        }
+        prior=xr.DataArray(prior.reshape((len(prior_not_flattened.time.values),len(prior_not_flattened.latitude.values),len(prior_not_flattened.longitude.values))), dims=dims,coords=coords)
+    # DEBUG START
+    analy_region_lat=[20,48]
+    analy_region_lon=[-126,-70]
+
+    res=2
+    n_regions=[2,3] #lat, lon
+    lat_dist=int((analy_region_lat[1]-analy_region_lat[0])/n_regions[0]/res)*res
+    lon_dist=round((analy_region_lon[1]-analy_region_lon[0])/n_regions[1]/res)*res
+    #define region edges
+    regions_lat=[]
+    for i in range(n_regions[0]+1): #lat
+        if i == n_regions[0]:
+            regions_lat.append(analy_region_lat[1])
+        else:
+            regions_lat.append(analy_region_lat[0]+i*lat_dist)
+    regions_lon=[]
+    for i in range(n_regions[1]+1): #lat
+        if i == n_regions[1]:
+            regions_lon.append(analy_region_lon[1])
+        else:
+            regions_lon.append(analy_region_lon[0]+i*lon_dist)
+    fig,axs=plt.subplots(2,3,figsize=(24,12))
+    for i in range(n_regions[0]): #lat
+        for j in range(n_regions[1]): #lon
+            k=0
+
+            temp3=prior.where(((prior.latitude>= regions_lat[i]) &(prior.latitude<regions_lat[i+1])),drop=True)
+            temp3=temp3.where(((temp3.longitude>= regions_lon[j]) &(temp3.longitude<regions_lon[j+1])),drop=True)
+            temp3=temp3.mean(['latitude','longitude'])
+            temp3['total_flux']=temp3*1e6
+            #temp3['prior_uncertainty']=temp3.prior_uncertainty*1e6
+            axs[i,j].plot(temp3.time, temp3, c='orange', marker='o', markersize=2, label='prior TM5-4DVar flux')
+
+
+            #plt.fill_between(temp3.time, temp3.TM5_posterior_flux-temp2.TM5_posterior_std, temp2.TM5_posterior_flux+temp2.TM5_posterior_std, color='red', alpha=0.2) 
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f'{spath}{name}',bbox_inches='tight')
+    plt.close()
 # utils
 def load_config(config_path):
     """Load configuration with from config YAML file."""
@@ -351,7 +412,8 @@ if __name__ == "__main__":
     CONFIG = load_config(config_path)
     for key, value in CONFIG.items():
         globals()[key] = value
-    
+    print(inversion_subdirectory)
+
     for res in res_list:             # ,2, 4
         # paths that depend on res
         # old paths
@@ -365,7 +427,7 @@ if __name__ == "__main__":
             is_path=f'{output_dir}/insitu/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
             gosat_path=f'{output_dir}/RemoTeCv240/prep_footprints/high_res/scaled_weekly_gamma/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
         # read prior flux 
-        flux_path=f'/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar/TM54DVar_fluxes/flux_{res}x{res}_prior_cut.nc'
+        flux_path=f'/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/TM54DVar_fluxes/flux_{res}x{res}_prior_cut.nc'
         # read data
         is_data=xr.open_dataset(is_path)
         gosat_data=xr.open_dataset(gosat_path)
@@ -399,7 +461,6 @@ if __name__ == "__main__":
             pointspec_to_keep = merged['pointspec'].unique()
             # filter dataset
             gosat_data = gosat_data.sel(pointspec=pointspec_to_keep)            
-        
         # same for with and without correlation
         # get measurements
         if WITH_OFFSET:
@@ -419,6 +480,31 @@ if __name__ == "__main__":
             # add y_offset to meas data
             gosat_meas = (gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']+gosat_data.y_offset).values
             is_meas = (is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']+is_data.y_offset).values
+        elif VERIFICATION_SAMPLE:
+            if os.path.exists(f'{output_dir}{inversion_subdirectory}/verification.json'):
+                 with open(f'{output_dir}{inversion_subdirectory}/verification.json', 'r', encoding='utf-8') as file:
+                    indizes=json.load(file)
+            else:
+                verification_sample_gosat=random.sample(list(range(0,len(gosat_data.pointspec))),round(len(gosat_data.pointspec)*verification_gosat))
+                dataset_sample_gosat=list(range(0,len(gosat_data.pointspec)))
+                verification_sample_insitu=random.sample(list(range(0,len(is_data.pointspec))),round(len(is_data.pointspec)*verification_insitu))
+                dataset_sample_insitu=list(range(0,len(is_data.pointspec)))
+                for s in verification_sample_gosat:
+                    dataset_sample_gosat.remove(s)
+                for s in verification_sample_insitu:
+                    dataset_sample_insitu.remove(s)
+                indizes={ "verification_indizes_gosat": verification_sample_gosat , "dataset_indizes_gosat":dataset_sample_gosat,
+                            "verification_indizes_insitu":verification_sample_insitu, "dataset_indizes_insitu":dataset_sample_insitu}
+                if not os.path.exists(f'{output_dir}/{inversion_subdirectory}/'):
+                    os.makedirs(f'{output_dir}/{inversion_subdirectory}/')
+                with open(f'{output_dir}/{inversion_subdirectory}/verification.json','w') as f:
+                    json.dump(indizes,f)
+                    print(f'saved indizes of verification sample in {output_dir}/{inversion_subdirectory}/verification.json')
+            gosat_data = gosat_data.isel(pointspec=indizes['dataset_indizes_gosat'])
+            is_data = is_data.isel(pointspec=indizes['dataset_indizes_insitu'])
+            gosat_meas = (gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']).values
+            is_meas = (is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']).values
+
         else:   # without measurements
             gosat_meas = (gosat_data.xco2-gosat_data[f'{BG}_{bg_ds}_background']).values
             is_meas = (is_data['co2_val[ppm]']-is_data[f'{BG}_{bg_ds}_background']).values
@@ -426,21 +512,36 @@ if __name__ == "__main__":
         elif WITH_ADDITIVE_DIURNAL:
             gosat_meas = (gosat_data['xco2_with_diurnal_offset']-gosat_data[f'TM5_{bg_ds}_background']).values
             is_meas = (is_data['co2_with_diurnal_offset']-is_data[f'TM5_{bg_ds}_background']).values'''    
-        
         # combine measurement arrays
-        measurements=np.append(gosat_meas, is_meas)
-        #measurements=is_meas
+
+        # only gosat/insitu
+        if only=='gosat':
+            measurements=gosat_meas
+        elif only=='insitu':
+            measurements=is_meas
+        else:
+            measurements=np.append(gosat_meas, is_meas)
+        
+
         # read priors
         flat_prior, TM5_prior, weekly_prior=get_weekly_priors_from_flux(flux_path, start_date, end_date)
+        # DEBUG start
+        test,test2,weekly=get_weekly_priors_from_flux(flux_path, start_date, end_date)
+        del test
+        del test2
+        #DEBUG end
         # get prior covariance from prior flux
         weekly_prior=weekly_prior.stack(grid_box=("time","latitude", "longitude")).squeeze()
+        plot_prior(TM5_prior,flattened=True,prior_not_flattened=weekly,name='TM5_prior_readin')
+        plot_prior(weekly_prior.total_flux.values,flattened=True,prior_not_flattened=weekly,name='weekly_prior_readin')
         if WITH_OFFSET or WITH_GAMMA_OFFSET:
+            print('DEBUG entered OFFSET')
             flat_prior=flat_prior+x_offset
             TM5_prior=TM5_prior+x_offset
         # run with / without covariance
         for corr_str in corr_list:     #, 'no'
             print(f'{corr_str} covariance')
-            cov_path=f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/cov_{corr_str}_corr_{res}x{res}.nc'
+            cov_path=f'{output_dir}/{inversion_subdirectory}/{res}x{res}/{corr_str}_correlation/cov_{corr_str}_corr_{res}x{res}.nc'
             if os.path.isfile(cov_path):
                 prior_cov=xr.open_dataarray(cov_path).values
                 print(f'read cov matrix from {cov_path}')
@@ -448,21 +549,32 @@ if __name__ == "__main__":
                 if corr_str=='with':
                     print('getting cov matrix')
                     prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0.005)
+                elif corr_str=='with_1M':
+                    print('getting cov matrix')
+                    prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=1, epsilon=0.84, prior_min=0.005)
+                elif corr_str=='with_e04':
+                    print('getting cov matrix')
+                    prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.4, prior_min=0.005)
                 elif corr_str=='no':
                     print('getting prior variance')
                     prior_cov = get_prior_var_no_correlation_from_weekly_prior(weekly_prior)
                     import sparse
                     prior_cov=(sparse.COO.from_scipy_sparse(prior_cov)).todense()
+                elif corr_str=='temporal' or corr_str=='spatial':
+                    prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=3, epsilon=0.84, prior_min=0.005,corr=corr_str)
+                elif corr_str=='temporal_1M':
+                    prior_cov = get_cov_from_weekly_prior(weekly_prior, L=500,T=1, epsilon=0.84, prior_min=0.005,corr='temporal')
+                else: 
+                    print(f'correlation string {corr_str} is not defined')
                     
                 # save covariance matrix
-                if not os.path.isdir(f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/'):
-                    os.makedirs(f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/')
+                if not os.path.isdir(f'{output_dir}/{inversion_subdirectory}/{res}x{res}/{corr_str}_correlation/'):
+                    os.makedirs(f'{output_dir}/{inversion_subdirectory}/{res}x{res}/{corr_str}_correlation/')
                 # create datarray
                 prior_cov_da = xr.DataArray(prior_cov, dims=['x', 'y'])
                 prior_cov_da.to_netcdf(cov_path)
                 print(f'saved covariance matrix to {cov_path}')
                 del prior_cov_da
-            
             # run for different footprint scalings
             # only use spec001_mr_scaled_beta_prime with offset
             for f_col in f_list:        
@@ -472,12 +584,18 @@ if __name__ == "__main__":
                 gosat_footprints=gosat_data[[f_col]]
                 
                 # combine footprints, pointspec dim=first all gosat, then all insitu
-                footprints=xr.concat([gosat_footprints, is_footprints], dim='pointspec')
-                #footprints=is_footprints
+                # only gosat/insitu
+                if only=='gosat':
+                    footprints=gosat_footprints
+                elif only=='insitu':
+                    footprints=is_footprints
+                else:
+                    footprints=xr.concat([gosat_footprints, is_footprints], dim='pointspec')
+
                 footprints=footprints.stack(grid_box=("time","latitude", "longitude")).squeeze()
             
                 for gosat_meas_err in gosat_meas_err_list:
-                    sdir=f'{output_dir}/inversions/{res}x{res}/{corr_str}_correlation/footprint_{f_col}/{gosat_meas_err}ppm_gosat_meas_err/'
+                    sdir=f'{output_dir}/{inversion_subdirectory}/{res}x{res}/{corr_str}_correlation/footprint_{f_col}/{gosat_meas_err}ppm_gosat_meas_err/'
                     if FILTER_GOSAT_MEAS:
                         sdir=sdir[:-1]+'_filtered/'
                     if WITH_OFFSET:
@@ -500,8 +618,13 @@ if __name__ == "__main__":
                             os.makedirs(f"{sdir}/{meas_err_val}ppm_insitu_meas_err")
                         # measurement_covariance
                         # insitu meas error
-                        measurement_covariance=np.append(np.ones(gosat_meas.shape)*gosat_meas_err, np.ones(is_meas.shape)*meas_err_val)
-                        #measurement_covariance=np.ones(is_meas.shape)*meas_err_val
+                        if only=='gosat':
+                            measurement_covariance=np.ones(gosat_meas.shape)*gosat_meas_err
+                        elif only=='insitu':
+                            measurement_covariance=np.ones(is_meas.shape)*meas_err_val
+                        else:
+                            measurement_covariance=np.append(np.ones(gosat_meas.shape)*gosat_meas_err, np.ones(is_meas.shape)*meas_err_val) 
+
                         print(measurement_covariance)
                         # run inverion, save dataset
                         spath=f"{sdir}/{meas_err_val}ppm_insitu_meas_err/{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}_{bg_ds}_bg.nc"
@@ -514,6 +637,8 @@ if __name__ == "__main__":
                         if WITH_FLAT:
                             run_inv_TM5_prior_flat(flat_prior, TM5_prior, prior_cov, measurements,measurement_covariance, footprints,spath,SAVE_AK, footprint_col_name=f_col)
                         else:
+                            print('DEBUG entered inversion')
+                            plot_prior(TM5_prior,flattened=True,prior_not_flattened=weekly,name='TM5_prior_before_inversion',spath=spath[:-33])
                             run_inv(TM5_prior, prior_cov, measurements,measurement_covariance, footprints,spath,SAVE_AK, footprint_col_name=f_col)
                         del measurement_covariance
                         if FILTER_GOSAT_MEAS:

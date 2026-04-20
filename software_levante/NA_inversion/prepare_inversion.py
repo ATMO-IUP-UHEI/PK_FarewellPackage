@@ -124,7 +124,6 @@ def calc_background_gosat(release_dir, molefrac_dir,num_parts,gosat_path,gosat_s
             temp=xr.open_dataset(f'{molefrac_dir}xco2_mean_{date_str}.nc')
             bg_data=xr.concat([bg_data,temp], dim='times', data_vars='all')
     #co2='mix'
-
     co2='CO2'
 
     # add boundaries as coordinate 
@@ -136,10 +135,9 @@ def calc_background_gosat(release_dir, molefrac_dir,num_parts,gosat_path,gosat_s
     # get value of CT data based on particle time, lat and lon using interp_method
     bg_interp=bg_data.interp(times=data.time, latitude=data.lat, longitude=data.lon,method=interp_method)
     bg_data.close()
-
     # get level the particles are in based on presssure
     # idxmax gives index of first time condition is true, -1 to get level nuber from upper boundary of level
-    p_levels=((bg_interp.p_boundary<data.prs).idxmax(dim='boundaries')-1).reset_coords(names=['times','latitude','longitude'])      
+    p_levels=((bg_interp.p_boundary<data.prs).idxmax(dim='boundaries')-1).reset_coords(names=['times','latitude','longitude']) 
     # set values of -1 to 0 (-1 if pressure lower than lowest boundary)
     p_levels['boundaries']=p_levels.boundaries.where(p_levels.boundaries != -1, 0)        # returns value from p_levels[boundary where condition is True, otherwise fills in other value (here 1)]
     # get co2 of respective level
@@ -204,6 +202,9 @@ def calc_background_gosat(release_dir, molefrac_dir,num_parts,gosat_path,gosat_s
             else:
                 xco2=xco2/(max(gosat_temp.pressure_levels.values)-min(gosat_temp.pressure_levels.values))
             Axco2.append(xco2)
+        gosat_data['xco2_retrieved']=gosat_data.xco2
+        Axa=(gosat_data.xco2_averaging_kernel* gosat_data.co2_profile_apriori).mean('layer_dim')
+        gosat_data['xco2']=gosat_data.xco2-gosat_data.co2_column_apriori+Axa
         gosat_data=gosat_data.drop_dims(['layer_dim','level_dim'])
         gosat_data=(gosat_data.to_dataframe().reset_index()).drop(columns=gosat_data.dims.keys())
         
@@ -262,28 +263,29 @@ def get_gosat_bg_xco2(start_date, end_date,flex_data_dir, gosat_dir,gosat_sdir,T
             warnings.warn(warn)
             continue
         if SAK:
-            gosat_path=f"{gosat_dir}/{d.strftime('%Y_%m')}/RemoTeCv2.4.0_{d.strftime('%Y%m%d')}.nc"
+            gosat_path=f"{gosat_dir}/{d.strftime('%Y_%m')}/RemoTeCv2.4.1_{d.strftime('%Y%m%d')}.nc"
         else:
             gosat_path=f"{gosat_dir}/{d.strftime('%Y_%m')}/RemoTeCv2.4.0_{d.strftime('%Y%m%d')}.csv"
         gosat_spath=f"{gosat_sdir}/{d.strftime('%Y_%m')}/xco2_bg_{d.strftime('%Y%m%d')}.csv"                         
-        #if not os.path.isdir(f"{gosat_sdir}/{d.strftime('%Y_%m')}"):
-            #os.makedirs(f"{gosat_sdir}/{d.strftime('%Y_%m')}")
+        if not os.path.isdir(f"{gosat_sdir}/{d.strftime('%Y_%m')}"):
+            os.makedirs(f"{gosat_sdir}/{d.strftime('%Y_%m')}")
         # check if there are GOSAT measurements for that day
-        #if os.path.isfile(gosat_path):
-        # get last positions of particles
-        last_positions_path=f"{release_dir}/DF_last_positions.pkl"
-            # check if DF_last_positions exists, create if doesnt exist
-        if not os.path.isfile(last_positions_path):
-            print('create DF_last_positions.pkl')
-            createLastPositionsDF(release_dir)
-            
+        if os.path.isfile(gosat_path):
+            # get last positions of particles
+            last_positions_path=f"{release_dir}/DF_last_positions.pkl"
+                # check if DF_last_positions exists, create if doesnt exist
+            if not os.path.isfile(last_positions_path):
+                print('create DF_last_positions.pkl')
+                createLastPositionsDF(release_dir)
+                
             # calculate co2 enhancement
             # check if .csv already exists at desired saving location
-            if os.path.isfile(gosat_spath): # read csv from gosat_spath
-                calc_TM5flux_enhancement(release_dir, TM5flux_path,gosat_spath,gosat_spath, col_name=f'TM5_{TM5_ds}_enhancement')
-            else:    # read csv from gosat_path
-                calc_TM5flux_enhancement(release_dir, TM5flux_path,gosat_path,gosat_spath, col_name=f'TM5_{TM5_ds}_enhancement')
-            calc_background_gosat(release_dir, molefrac_dir,num_parts,gosat_spath, gosat_spath, col_name=f'{BG}_{molefrac_ds}_background',xco2_col_name=f'{BG}_{molefrac_ds}_xco2', SAK=SAK)
+            if not SAK:
+                if os.path.isfile(gosat_spath): # read csv from gosat_spath
+                    calc_TM5flux_enhancement(release_dir, TM5flux_path,gosat_spath,gosat_spath, col_name=f'TM5_{TM5_ds}_enhancement')
+                else:    # read csv from gosat_path
+                    calc_TM5flux_enhancement(release_dir, TM5flux_path,gosat_path,gosat_spath, col_name=f'TM5_{TM5_ds}_enhancement')
+            calc_background_gosat(release_dir, molefrac_dir,num_parts,gosat_path, gosat_spath, col_name=f'{BG}_{molefrac_ds}_background',xco2_col_name=f'{BG}_{molefrac_ds}_xco2', SAK=SAK)
 
 def calc_interpolated_TM5_meas_values(start_date, end_date, bg_dir, gosat_dir, is_dir, bg_str='RemoTeC_2.4.0+IS', BG='TM5'):
     ''' Calculate interpolated molefraction values from TM5-4DVar
@@ -347,7 +349,7 @@ def calc_TM5_background_for_ISmeas(release_dir, molefrac_dir,num_parts,is_path,i
     """Calculate co2 background for in-situ measurements from dataframe containing last positions of all particles, path to TM5 data with pressure at boundaries 
     Args:
         last_positions_path: path to DataFrame containing, lat,lon, time and pressure of last position of all released particles of one flexpart run
-        TM5_dir: path to directory where TM5 concentration data is saved, needs to include pressure at boundaries
+        molefrac_dir: path to directory where concentration data is saved, needs to include pressure at boundaries
         num_parts (int): number of particles per release, assuming one release layer per sounding position
         is_path: path to file containing insitu measurement position, time and co2
         is_spath: path to where insitu file, now including mean background, should be saved, defaults to is_path
@@ -451,7 +453,7 @@ def process_flexpart_runs(start_date, end_date,flex_dir,gosat_dir,is_dir, TM5flu
         
         # gosat measurements:
         # calculate background, TM5-4DVAR xco2 and enhancement from footprints an 1x1 fluxes
-        flex_data_dir=f'{flex_dir}/RemoTeC/' #/RemoTeCv240/'
+        flex_data_dir=f'{flex_dir}/RemoTeCv240/' #/RemoTeCv240/'
         gosat_sdir=f"{flex_dir}/RemoTeCv240/TM5-4DVar_estimate/"
         get_gosat_bg_xco2(start_date, end_date,flex_data_dir, gosat_dir,gosat_sdir,ds, TM5flux_path, molefrac, molefrac_ds,BG=BG, SAK = SAK)
 
@@ -594,7 +596,7 @@ def get_weekly_TM5_4DVarflux(ds_path):
     ds=xr.open_dataset(ds_path)
     # timerange of the TM5-4DVar dataset
     TM5_start_date=dt.date(2009,1,1)
-    TM5_end_date=dt.date(2019,6,30)
+    TM5_end_date=dt.date(2023,1,8)
     # Convert monthly data to daily by forward-filling values
     ds = ds.reindex(time=pd.date_range(TM5_start_date,TM5_end_date), method='ffill')
 
@@ -626,23 +628,27 @@ def get_weekly_TM5_4DVarflux(ds_path):
 
 # main
 if __name__ == "__main__":  
-    start_date, end_date =dt.date(2022,1,1), dt.date(2022,3,31)    # time period of measurements
+    start_date, end_date =dt.date(2020,10,1), dt.date(2022,3,31)    # time period of measurements
     # data paths
     # TM5-4DVar molefractions with selected dataset as subdirectory
-    BG='CAMS'
-    molefrac_dir='/work/bb1170/RUN/b383736/data/CAMS/'
-    molefrac_bg_str = 'satellite'         # 
-    molefrac=f'{molefrac_dir}{molefrac_bg_str}/'
+    BG='TM5'
+    #BG='CAMS'
+    molefrac_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/TM5_molfractions/'
+    #molefrac_dir='/work/bb1170/RUN/b383736/data/CAMS/2020-2022/'
 
-    TM5_molefrac_dir='/work/bb1170/RUN/b383736/data/PK_Flexpart/TM54DVar_with_diurnal_amplitude'
-    TM5_str = 'RemoTeC_2.4.0+IS'         # TM5-4DVar dataset, chose from ['RemoTeC_2.4.0+IS', 'ACOS+IS','IS', 'prior]
-    TM5_dir=f'{molefrac_dir}{TM5_str}/'
+    molefrac_bg_str = 'RemoTeC_2.4.1+IS-land_ocean_bc'         # 
+    #molefrac_bg_str = 'satellite'         # 
+    molefrac=f'{molefrac_dir}/{molefrac_bg_str}/'
+
+    #TM5_molefrac_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/'
+    TM5_str = 'RemoTeC_2.4.1+IS'         # TM5-4DVar dataset, chose from ['RemoTeC_2.4.0+IS', 'ACOS+IS','IS', 'prior]
+    #TM5_dir=f'{molefrac_dir}{TM5_str}/'
 
 
     # directory with TM5-4DVar fluxes
-    TM5flux_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar_with_diurnal_amplitude/TM54DVar_fluxes/'
+    TM5flux_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/TM54DVar_fluxes'
     # path to high resolution (interpolated) scaling data
-    scaling_data_path='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar_with_diurnal_amplitude/high_res_total_scaling_RemoTeC+IS.nc'
+    scaling_data_path='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/high_res_total_scaling_RemoTeC+IS.nc'
 
     # FLEXPART
     flex_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/' # path to directory with RemoTeC and insitu Flexpart release subdirectories
@@ -652,7 +658,7 @@ if __name__ == "__main__":
     # path to soundingposition.csv files
     gosat_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/measurements/RemoTeC/'      
     is_dir=f'/work/bb1170/RUN/b383736/data/Flexpart_2021/measurements/Obspack/'
-    # path to where .csv files should be saved, will creade subdirectories YYYY_mm/co2_bg_YYYYMMDD.csv
+    # path to where .csv files should be saved, will create subdirectories YYYY_mm/co2_bg_YYYYMMDD.csv
     # should not be changed
     gosat_csv_sdir=f'{flex_dir}/RemoTeCv240/TM5-4DVar_estimate/'
     is_csv_dir=f'{flex_dir}/insitu/TM5-4DVar_estimate/'   
@@ -660,18 +666,18 @@ if __name__ == "__main__":
     # e.g flex_dir/insitu/YYYY_MM/..., RemoTeCv240, or TM5-4DVar_estimate
 
     # select funtions to run
-    PREP_TM5_4DVAR_REF_FLUXES=True
+    PREP_TM5_4DVAR_REF_FLUXES=False
     SATELLITE_AVERAGING_KERNEL = True
 
     GET_IS_BG_CO2=False # get background and TM5-4DVar moelfractions, save as .csv files in specified directory
     GET_XCO2_VALS=False
     GET_INTERP_TM5_VALS=False
-    PROCESS_FLEX_RUNS=True  # combines the three steps above
-    GET_FRAC_REM=True
+    PROCESS_FLEX_RUNS=False  # combines the three steps above
+    GET_FRAC_REM=False
     
     GET_HIGH_RES_FOOTPRINTS=True
-    GET_TM5_4DVAR_SCALED_FOOTPRINTS=True    # will also calculate unscaled weekly footprints, optionally: remove hourly footprint files for storage reasons
-    GET_WEEKLY_NO_SCALING=True         # use if no scaling should be applied to the footprints, adapt path in COARSEN_HIGH_RES_FOOTPRINT in that case
+    GET_TM5_4DVAR_SCALED_FOOTPRINTS=False    # will also calculate unscaled weekly footprints, optionally: remove hourly footprint files for storage reasons
+    GET_WEEKLY_NO_SCALING=False         # use if no scaling should be applied to the footprints, adapt path in COARSEN_HIGH_RES_FOOTPRINT in that case
     COARSEN_HIGH_RES_FOOTPRINT=True #False     # if True, adapt dir_path
     ADDITIVE_DIURNAL_CYCLE=True
     
@@ -711,7 +717,7 @@ if __name__ == "__main__":
     
     # three steps above combined in this one
     if PROCESS_FLEX_RUNS:
-        process_flexpart_runs(start_date, end_date,flex_dir,gosat_dir,is_dir, TM5flux_dir,molefrac_dir,molefrac_ds=molefrac_bg_str,BG=BG, SAK = SATELLITE_AVERAGING_KERNEL)
+        process_flexpart_runs(start_date, end_date,flex_dir,gosat_dir,is_dir, TM5flux_dir,molefrac_dir,molefrac_ds=molefrac_bg_str,ds_list=[TM5_str],BG=BG, SAK = SATELLITE_AVERAGING_KERNEL)
 
     if GET_FRAC_REM:
         # insitu releases
@@ -751,8 +757,9 @@ if __name__ == "__main__":
                     data_list.append(data)
             is_data=pd.concat(data_list)
             is_data=is_data.reset_index(names='release_num')
-             
-           
+            
+            #print(f'DEBUG {is_footprint.release_day.dt.date.values=}')
+            #print(f'DEBUG {is_data.time.dt.date=}')
             # check that release dates match
             if (is_footprint.release_day.dt.date.values==is_data.time.dt.date).all():
                 # check that release numbers match 
@@ -880,7 +887,7 @@ if __name__ == "__main__":
                 print('reading footprint data')
                 data=xr.open_dataset(data_path)
                 # multiply with TM5-4DVar total scaling factors from prior
-                data['spec001_mr_diurnal_amplitude']=(data['spec001_mr']*scaling_data.nee_amplitude*44/12*1e-3/(24*60*60)).assign_attrs(description='additive diurnal term from TM5-4DVar prior fluxes hourly_amplitude * Flexpart footprint', units='ppm s m^2/kgCO2')
+                data['spec001_mr_diurnal_amplitude']=(data['spec001_mr']*0.5*scaling_data.nee_amplitude*44/12*1e-3/(24*60*60)).assign_attrs(description='additive diurnal term from TM5-4DVar prior fluxes hourly_amplitude * Flexpart footprint', units='ppm s m^2/kgCO2')
 
                 # get weekly sum
                 # Create the 7-day period bins
@@ -945,6 +952,8 @@ if __name__ == "__main__":
                 print('saving succesfull')
                 del data
     # combine into one ds for entire time period,  coarsen to 2x2 and 4x4 resolution
+    ADDITIVE_DIURNAL_CYCLE=True
+
     if COARSEN_HIGH_RES_FOOTPRINT:
         #is_cols=['release_num','release_day','release_time','file','release_lat','release_lon','co2_val[ppm]','elevation[masl]',
         #         'intake_height[magl]','TM5_RemoTeC_2.4.0+IS_background','p_intake_height[hPa]','TM5_RemoTeC_2.4.0+IS_co2','TM5_RemoTeC_2.4.0+IS_co2_interpolated','frac_remaining']
@@ -978,7 +987,6 @@ if __name__ == "__main__":
                          for month_start in pd.date_range(start_date, end_date, freq='MS')]
             # sort file list
             file_list.sort()
-            
             # combine into one ds
             # Now use open_mfdataset
             data = xr.open_mfdataset(
