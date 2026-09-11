@@ -93,9 +93,9 @@ def sel_stations(path,region, start_date, end_date, s_dir):
     # for all filtered files, save with local time
     # get desired time range and region for filtered files
     for f in filtered_files:
-        ds=xr.open_dataset(path+f)
+        ds=xr.open_dataset(path+f,decode_timedelta=True)
         # ds=ds.assign_coords(time=ds.time, latitude=ds.latitude, longitude=ds.longitude, altitude=ds.altitude)
-        temp=ds.drop_dims(['calendar_components','dim_concerns' ])
+        temp=ds.drop_dims(['calendar_components','dim_concerns','mip_nmodels' ])
         # check that there are measurements with CT_assim=1 flag for desired timeperiod & region with 
         if temp.where((temp.CT_assim==1) & (temp.time.dt.date>=start_date)&(temp.time.dt.date<=end_date) & (temp.latitude> region[0])&(temp.latitude<region[1]) & (temp.longitude> region[2])&(temp.longitude<region[3]), drop=True).sizes['obs']>0:
             ds_sel=ds.where((ds.CT_assim==1) & (ds.time.dt.date>=start_date)&(ds.time.dt.date<=end_date) & (ds.latitude> region[0])&(ds.latitude<region[1]) & (ds.longitude> region[2])&(ds.longitude<region[3]), drop=True)
@@ -107,6 +107,8 @@ def sel_stations(path,region, start_date, end_date, s_dir):
                 'source': 'TimezoneFinder and pytz'
             }
             ds_sel['timezone']=(('obs'), np.array(timezones))
+            #if 'time_interval' in ds_sel.data_vars():
+            #    ds_sel.drop_vars("time_interval")
             # save dile as .nc file
             ds_sel.to_netcdf(s_dir+f)
             print(f"saved to {s_dir}{f}")
@@ -123,7 +125,19 @@ def get_4h_mean_stations(dir_path, sdir_path, h_lim=1100):
     '''
     files=[f for f in os.listdir(dir_path) if f.endswith('.nc')]
     for f in files:
-        data=xr.open_dataset(dir_path+f)
+        print(f)
+        data=xr.open_dataset(dir_path+f, decode_cf=False)
+        dims_to_drop = [dim for dim in data.dims if dim not in {"obs","date"}]
+        print(dims_to_drop)
+        data = data.drop_dims(dims_to_drop)
+        #data = data.reset_index("obs", drop=False)
+        decoded  = xr.coding.times.decode_cf_datetime(data.time.values,data.time.attrs["units"],data.time.attrs.get("calendar", "standard"))
+        decoded_local  = xr.coding.times.decode_cf_datetime(data.local_time.values,data.local_time.attrs["units"],data.local_time.attrs.get("calendar", "standard"))
+        #data=xr.Dataset(data.data_vars)
+        data['time']=("obs",decoded)
+        data['local_time']=("obs", decoded_local)
+        #data = data.reset_coords(drop=True)
+
         if len(np.unique(data.elevation.values))!=1:
             print(f'Error with elevation for file {f}, should be exactly one value!')
             print(data.elevation.values)
@@ -132,9 +146,10 @@ def get_4h_mean_stations(dir_path, sdir_path, h_lim=1100):
             if elevation<h_lim: # surface meas, local afternoon 4hour mean
                 start_time=dt.time(12,0)
                 end_time=dt.time(16,0)          
-            elif elevation>h_lim:   # mountain, nightly 4hour mean
+            elif elevation>=h_lim:   # mountain, nightly 4hour mean
                 start_time=dt.time(0,0)
                 end_time=dt.time(4,0)
+            #data_sel=data.where((data.local_time.dt.time>=start_time)&(data.local_time.dt.time<end_time))
             data_sel=data.where((data.local_time.dt.time>=start_time)&(data.local_time.dt.time<end_time))
             # if not all values are nans
             if not np.isnan(data_sel.value).all().item():
@@ -145,8 +160,8 @@ def get_4h_mean_stations(dir_path, sdir_path, h_lim=1100):
                 data_mean=data_sel.groupby("local_time.date").mean(dim='obs')    # mean for local 4 hour period
                 data_mean['num_meas']=data_sel.groupby("local_time.date").count(dim='obs').nvalue  
                 data_mean['num_meas']=data_mean['num_meas'].assign_attrs(description='Number of hourly measurements used for 4h mean value')    # can be larger than 4 if hourly averages given e.g. every 30 minutes ('co2_bao_tower-insitu_1_allvalid-300magl.nc')
-                data_mean['num_toal']=data_sel.groupby("local_time.date").sum(dim='obs').nvalue
-                data_mean['num_toal']=data_mean['num_toal'].assign_attrs(description='Sum over Number of individual measurements used for 4h mean value')
+                data_mean['num_total']=data_sel.groupby("local_time.date").sum(dim='obs').nvalue
+                data_mean['num_total']=data_mean['num_toal'].assign_attrs(description='Sum over Number of individual measurements used for 4h mean value')
                 # local time at start of 4h averaging period
                 data_mean['local_time']=(('date'),[dt.datetime.combine(d, start_time) for d in data_mean.date.values])
                 # get start_time in UTC
@@ -171,21 +186,23 @@ def plot_meas_station_map(path, region, sfig_path='is_meas_map.png'):
     surf_pfp=[f for f in files if 'surface-pfp' in f]
     surf_flask=[f for f in files if 'surface-flask' in f]   # all flask meas
     tower_is=[f for f in files if 'tower-insitu' in f]
-
     fig, ax=plt.subplots(1,1,figsize=(12,8), subplot_kw={'projection': ccrs.PlateCarree()})
     for f in surf_is:
-        temp=xr.open_dataset(path+f)
+        print(f)
+        temp=xr.open_dataset(path+f,decode_timedelta=True,decode_cf=False)
         ax.scatter(temp.longitude[0], temp.latitude[0], marker='o', color='royalblue')
     for f in surf_flask:
-        temp=xr.open_dataset(path+f)
+        print(f)
+        temp=xr.open_dataset(path+f,decode_timedelta=True,decode_cf=False)
         ax.scatter(temp.longitude[0], temp.latitude[0], marker='^', color='darkorange')
     for f in surf_pfp:
-        temp=xr.open_dataset(path+f)
+        print(f)
+        temp=xr.open_dataset(path+f,decode_timedelta=True,decode_cf=False)
         ax.scatter(temp.longitude[0], temp.latitude[0], marker='d', color='#f781bf')
     for f in tower_is:
-        temp=xr.open_dataset(path+f)
+        print(f)
+        temp=xr.open_dataset(path+f,decode_timedelta=True,decode_cf=False)
         ax.scatter(temp.longitude[0], temp.latitude[0], marker='s', color='#4daf4a')
-
     ax.set_xlabel('longitude')
     ax.set_ylabel('latitude')
     # Add coastlines
@@ -220,13 +237,13 @@ def plot_meas_station_map(path, region, sfig_path='is_meas_map.png'):
 
 if __name__ == '__main__':
     flexpart_region=[12,56,-134,-62]  # lat_min, lat_max, lon_min, lon_max
-    start_date=dt.date(2010,7,27)
-    end_date=dt.date(2010,11,3)      # including end_date
+    start_date=dt.date(2019,10,1)
+    end_date=dt.date(2023,3,31)      # including end_date
     # path to obspack data
-    obspack_path='/work/bb1170/RUN/b383736/data/Atmo/ObsPack/'
+    obspack_path='/work/bb1170/RUN/b383736/data/Atmo/ObsPack/ObsPack_till_2024/obspack_co2_1_GLOBALVIEWplus_v10.1_2024-11-13/data/nc/'
     
     # select time period, region, highest towe inlet
-    sel_sdir='/work/bb1170/RUN/b383736/data/ObsPack/PK_test/test_sel/'
+    sel_sdir='/work/bb1170/RUN/b383736/data/Atmo/ObsPack/2021_north_America/2021_sel/'
     if not os.path.isdir(sel_sdir):
         os.makedirs(sel_sdir)
     sel_stations(obspack_path,flexpart_region, start_date, end_date, sel_sdir)
@@ -237,17 +254,21 @@ if __name__ == '__main__':
     # mountain for elevation > 1100 masl
     h_lim=1100  #masl
     # path to save 4h mean values
-    mean_sdir='/work/bb1170/RUN/b383736/data/ObsPack/PK_test/test_mean/'
+    mean_sdir='/work/bb1170/RUN/b383736/data/Atmo/ObsPack/2021_north_America/2021_mean/'
     if not os.path.isdir(mean_sdir):
         os.makedirs(mean_sdir)
     get_4h_mean_stations(sel_sdir, mean_sdir, h_lim)
-    
     # combine individual station files to one dataset
-    spath=f'/work/bb1170/RUN/b383736/data/ObsPack/PK_test/test_lat{flexpart_region[0]}_{flexpart_region[1]}_lon{flexpart_region[2]}_{flexpart_region[3]}sel_mean_combined.nc'
+    spath=f'/work/bb1170/RUN/b383736/data/Atmo/ObsPack/2021_north_America/2021_lat{flexpart_region[0]}_{flexpart_region[1]}_lon{flexpart_region[2]}_{flexpart_region[3]}sel_mean_combined.nc'
     files=[f for f in os.listdir(mean_sdir) if f.endswith('.nc')]
     ds_list=[]
     for f in files:
-        ds=xr.open_dataset(mean_sdir+f).expand_dims(file=[f])
+        ds=xr.open_dataset(mean_sdir+f,decode_cf=False)
+        decoded  = xr.coding.times.decode_cf_datetime(ds.time.values,ds.time.attrs["units"],ds.time.attrs.get("calendar", "standard"))
+        ds['time']=("time", decoded)
+        decoded  = xr.coding.times.decode_cf_datetime(ds.local_time.values,ds.local_time.attrs["units"],ds.local_time.attrs.get("calendar", "standard"))
+        ds['local_time'] = ("time", decoded)
+        ds = ds.expand_dims(file=[f])
         ds["num_meas"] = ds["num_meas"].astype(float)
         ds["local_time"].encoding["dtype"] = "float32"  # Use a floating-point type
         ds["local_time"].encoding["units"] = "hours since 2009-10-06T12:00:00"
