@@ -13,7 +13,7 @@ eval "$(conda shell.bash hook)"     # activate conda env
 conda activate inversion
 
 # for running this skript with one pathnames directory
-# PATHNAMES_DIR="/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/RemoTeCv240/2010_06/config/pathnames_0" #path to directory containing multiple pathnames files
+#PATHNAMES_DIR="/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/insitu/2020_10/config/pathnames" #path to directory containing multiple pathnames files
 
 # for running Bulkstart_multiple.submit
 PATHNAMES_DIR=$1
