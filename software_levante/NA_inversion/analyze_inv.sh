@@ -12,4 +12,4 @@
 eval "$(conda shell.bash hook)"     # activate conda env
 conda activate pyinverse
 
-python analyse_inversion.py
+python -u analyse_inversion.py
