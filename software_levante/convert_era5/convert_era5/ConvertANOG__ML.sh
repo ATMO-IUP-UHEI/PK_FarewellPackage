@@ -13,11 +13,11 @@
 #conda deactivate
 source /sw/spack-levante/mambaforge-4.11.0-0-Linux-x86_64-sobz6z/etc/profile.d/conda.sh
 conda deactivate
-conda activate test
+conda activate /work/bb1170/conda/b383736/envs/test
   
 echo $CONDA_PREFIX
 
-export METVIEW_PYTHON_START_TIMEOUT=100         # gives the program a bit more time to find metview
+export METVIEW_PYTHON_START_TIMEOUT=600         # gives the program a bit more time to find metview
 python convert_ANOG__ML.py $filepath $inter_res $outfile $par $resol $borders0 $borders1 $borders2 $borders3
 
 # delete restart file

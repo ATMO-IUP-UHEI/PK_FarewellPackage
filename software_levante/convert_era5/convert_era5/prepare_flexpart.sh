@@ -15,23 +15,23 @@
 # to start this script you need to have metview installed (conda install metview -c conda-forge, conda install metview-python -c conda-forge)
 # start this script with: sbatch prepare_flexpart.sh
 eval "$(conda shell.bash hook)"     # activate conda env
-conda activate test
+conda activate /work/bb1170/conda/b383736/envs/test
 
 # paths and variables
-START_DATE=20190701
-END_DATE=20190930
+START_DATE=20230301
+END_DATE=20230302
 CONFIG_PATH="/work/bb1170/RUN/b383736/software/test_PK/PK_FarewellPackage/software_levante/convert_era5/convert_era5/config/config_2010.yaml"
-CONTROLFILE_PATH=/work/bb1170/RUN/b383736/data/ERA5_daten/2020/05/CONTROL
-OUTPUT_PATH=/work/bb1170/RUN/b383736/data/ERA5_daten/2020/05/
+CONTROLFILE_PATH=/work/bb1170/RUN/b383736/data/ERA5_daten/2023/CONTROL
+OUTPUT_PATH=/work/bb1170/RUN/b383736/data/ERA5_daten/2023/
 
-# echo $START_DATE
+echo $START_DATE
 
 # metview conversion
 echo "starting metview"
 echo $CONFIG_PATH
-export METVIEW_PYTHON_START_TIMEOUT=300
+export METVIEW_PYTHON_START_TIMEOUT=600
 python convert_era5_dkrz_ml_v6.py --config_path $CONFIG_PATH
-
+sleep 200
 # TODO add check to see if restartAnog folder is empty, otherwise need to rerun the metview skript
 
 # flex_extract preprocessing
