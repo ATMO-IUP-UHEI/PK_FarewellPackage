@@ -10,7 +10,13 @@
 #SBATCH --error=slurm/flexpart_v11.e%j     # File name for standard error output
 
 eval "$(conda shell.bash hook)"     # activate conda env
-conda activate metview
+conda activate inversion
 
-PATHNAMES_PATH="/work/bb1170/RUN/b382762/data/FarewellPackage_test/Flexpart/insitu/2010_06/config/pathnames/pathnames_20100601"
-srun /work/bb1170/RUN/b382762/software/flexpart_v11/src/FLEXPART_ETA $PATHNAMES_PATH 
+PATHNAMES_PATH="/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/RemoTeCv240/2023_02/config/pathnames_0/pathnames_20230227"
+echo "$PATHNAMES_PATH"
+OUTPUT_PATH=$(sed -n '2p' $PATHNAMES_PATH)
+echo $OUTPUT_PATH
+# run flexpart 
+echo "$PATHNAMES_PATH" 
+echo $(sed -n '3p' $PATHNAMES_PATH)
+srun  /work/bb1170/RUN/b383736/software/flexpart/src/FLEXPART_ETA $PATHNAMES_PATH > "${OUTPUT_PATH}/log.txt" 
