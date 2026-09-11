@@ -1,3 +1,15 @@
+# use conda environment with packages xarray, numpy, pandas and datetime ('test' for Sarah Grandke)
+# modifies the cams concentration files to be read in by prepare_inversion.py
+#   (puts in variables p_boundary, p_diff, levels, mix, xco2)
+#   saves datasets as daily files named 'xco2_mean_{date}.nc'
+
+# To use it, adapt:
+#  start_date, end_date
+#  CAMS_dir: directory to UNZIPPED CAMS concentration files 
+#  cams_version
+#  cams_str
+#  region (region of FLEXPART input)
+
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -7,7 +19,6 @@ import datetime as dt
 if __name__ == "__main__":  
     start_date, end_date =dt.date(2020,10,1), dt.date(2022,3,31)
     CAMS_dir='/work/bb1170/RUN/b383736/data/CAMS/2020-2022/satellite/'
-    #CAMS_dir='/work/bb1170/RUN/b383736/data/CAMS/IS/'
     cams_version='latest'
     cams_str=f'/cams73_{cams_version}_co2_conc_satellite_inst_'
     region=[2,66,-146,-50]  #lat_min, lat_max, lon_min, lon_max
