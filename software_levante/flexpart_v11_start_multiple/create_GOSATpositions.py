@@ -49,41 +49,42 @@ def write_GOSATpositions_RemoTeC241(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_
         data=xr.open_dataset(GOSAT_dir+file)
         print(f'reading file: {GOSAT_dir}{file}')
         # only use data over land and nadir and cut box
-        data=data.where((data.flag_landtype==0) & (data.flag_sunglint==0) & (data.latitude>Lat_min) & (data.latitude<Lat_max) & (data.longitude>Long_min) ,drop=True)
-        # check if there is longitude < Long_min, if so cut and continue
-        if np.min(data.longitude)<Long_max:
-            data=data.where((data.longitude<Long_max), drop=True)
-            # drop all variables with dependencies other than soundig_dim
-            # TODO nachfragen variable gain
-            data_df=data[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels','co2_column_apriori','co2_profile_apriori']]
-            #data_df=data.drop_vars(['co2_profile_apriori','ch4_profile_apriori','dry_airmass_layer','xch4_averaging_kernel','gain']).to_dataframe()
-            date_str=pd.to_datetime(data.time.values[0]).strftime('%Y%m%d')
-            directory=f"{outdir}/{pd.to_datetime(data.time.values[0]).strftime('%Y_%m')}/"
-            if not exists(directory):
-                makedirs(directory)
-            filename=f"{directory}/{outfile}_{date_str}.nc"
-            if AVERAGE_MEAS:
-                # average if meas within 0.5° and within 5 minutes
-                meas_id=1
-                meas_id_array=np.zeros(len(data.sounding_dim))
-                meas_id_array[0]=meas_id
-                for i in range(1,len(data.sounding_dim)):
-                    dlon=np.abs(data.longitude.values[i]-data.longitude.values[i-1])
-                    dlat=np.abs(data.latitude.values[i]-data.latitude.values[i-1])
-                    dt=np.abs(np.datetime64(data.time.values[i])-np.datetime64(data.time.values[i-1]))
-                    if dlon>0.5 or dlat>0.5 or dt>np.timedelta64(5,'m'):
-                        meas_id+=1
-                    meas_id_array[i]=meas_id        
-                data_df['meas_id']=meas_id_array
-                data_df=data_df.groupby(['meas_id']).mean()
-                filename=f"{outdir}{outfile}_{date_str}_mean.nc"
+        if data.xco2.where((data.flag_landtype==0) & (data.flag_sunglint==0) & (data.latitude>Lat_min) & (data.latitude<Lat_max) & (data.longitude>Long_min) ,drop=True).sizes['sounding_dim']>0:
+            data=data.where((data.flag_landtype==0) & (data.flag_sunglint==0) & (data.latitude>Lat_min) & (data.latitude<Lat_max) & (data.longitude>Long_min) ,drop=True)
+            # check if there is longitude < Long_min, if so cut and continue
+            if np.min(data.longitude)<Long_max:
+                data=data.where((data.longitude<Long_max), drop=True)
+                # drop all variables with dependencies other than soundig_dim
+                # TODO nachfragen variable gain
+                data_df=data[['time','latitude','longitude','xco2', 'xco2_err','xco2_averaging_kernel','pressure_levels','co2_column_apriori','co2_profile_apriori']]
+                #data_df=data.drop_vars(['co2_profile_apriori','ch4_profile_apriori','dry_airmass_layer','xch4_averaging_kernel','gain']).to_dataframe()
+                date_str=pd.to_datetime(data.time.values[0]).strftime('%Y%m%d')
+                directory=f"{outdir}/{pd.to_datetime(data.time.values[0]).strftime('%Y_%m')}/"
+                if not exists(directory):
+                    makedirs(directory)
+                filename=f"{directory}/{outfile}_{date_str}.nc"
+                if AVERAGE_MEAS:
+                    # average if meas within 0.5° and within 5 minutes
+                    meas_id=1
+                    meas_id_array=np.zeros(len(data.sounding_dim))
+                    meas_id_array[0]=meas_id
+                    for i in range(1,len(data.sounding_dim)):
+                        dlon=np.abs(data.longitude.values[i]-data.longitude.values[i-1])
+                        dlat=np.abs(data.latitude.values[i]-data.latitude.values[i-1])
+                        dt=np.abs(np.datetime64(data.time.values[i])-np.datetime64(data.time.values[i-1]))
+                        if dlon>0.5 or dlat>0.5 or dt>np.timedelta64(5,'m'):
+                            meas_id+=1
+                        meas_id_array[i]=meas_id        
+                    data_df['meas_id']=meas_id_array
+                    data_df=data_df.groupby(['meas_id']).mean()
+                    filename=f"{outdir}{outfile}_{date_str}_mean.nc"
 
-             # add date string to filename
-            print(f'saved sounding positions for region to: {filename}')
-            data_df.to_netcdf(filename)
-            #filename=outdir+outfile+f'_{date_str}.csv' # add date string to filename
-            #data_df.to_csv(filename, columns=['time','latitude','longitude','xco2', 'xco2_err'],index=False)   #,mode='a',header=(not exists(filename)))  # append to file if already exists if meas for multiple day in one .csv file
-            #print(f'saved sounding positions for region in: {filename}')
+                # add date string to filename
+                print(f'saved sounding positions for region to: {filename}')
+                data_df.to_netcdf(filename)
+                #filename=outdir+outfile+f'_{date_str}.csv' # add date string to filename
+                #data_df.to_csv(filename, columns=['time','latitude','longitude','xco2', 'xco2_err'],index=False)   #,mode='a',header=(not exists(filename)))  # append to file if already exists if meas for multiple day in one .csv file
+                #print(f'saved sounding positions for region in: {filename}')
     return
 
 def write_GOSATpositions_RemoTeC240(GOSAT_dir, Lat_min, Lat_max, Long_min, Long_max,outdir,start_date,end_date,outfile='RemoTeCv2.4.0', AVERAGE_MEAS=False): 

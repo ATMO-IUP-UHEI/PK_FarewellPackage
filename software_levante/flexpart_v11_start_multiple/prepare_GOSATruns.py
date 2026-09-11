@@ -47,8 +47,8 @@ def main(config_path):
             if not (len(release_time[i])==num_releases[i]):
                 print('ERROR: wrong format for release_time')
                 return
-    # otherwise read from satelight_sounding.csv
-    else:   # with satelight_sounding path
+    # otherwise read from satellite_positions.nc
+    else:   # with satellite_positions_path
         # creating empty lists for necessary variables
         sim_start, sim_start_last, release_time,latitude, longitude,num_releases,averaging_kernel,pressure_levels =[],[],[],[],[],[],[],[]
         
