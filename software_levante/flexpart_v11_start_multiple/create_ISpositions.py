@@ -57,7 +57,7 @@ def write_ISpositions(is_file, start_date, end_date, outdir, outfile='ISposition
             elevation=[obs_sel.elevation.sel(time=times_sel[i], file=files_sel[i]).item() for i in range(0,num_releases)]
             intake_height=[obs_sel.intake_height.sel(time=times_sel[i], file=files_sel[i]).item() for i in range(0,num_releases)]
 
-            df=pd.DataFrame(np.array([times_sel, files_sel, lat, lon, co2_val, elevation, intake_height]).T, columns=['time', 'file', 'latitude', 'longitude', 'co2_val[ppm]', 'elevation[masl]', 'intake_height[magl]'])
+            df=pd.DataFrame(np.array([times_sel, files_sel, lat, lon, co2_val, elevation, intake_height]).T, columns=['time', 'file', 'latitude', 'longitude', 'co2', 'elevation[masl]', 'intake_height[magl]'])
             # check if '%Y_%m' subdirectory exists
             if not os.path.isdir(f'{outdir}/{date.strftime("%Y_%m")}'):
                 os.mkdir(f'{outdir}/{date.strftime("%Y_%m")}')
