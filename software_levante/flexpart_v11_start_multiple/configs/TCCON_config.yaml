@@ -11,5 +11,5 @@ Long_max: -62
 # optional
 # output directory for gosat.csv files, if None, will be placed in GOSAT_dir
 outdir: '/work/bb1170/RUN/b383736/data/Flexpart_2021/measurements/TCCON/'
-startdate:  '20201001'  # start date in format: yyyymmdd
-enddate:    '20220331'  # end date in format: yyyymmdd
+startdate:  '20191001'  # start date in format: yyyymmdd
+enddate:    '20230331'  # end date in format: yyyymmdd
