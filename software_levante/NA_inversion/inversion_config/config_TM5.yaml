@@ -1,24 +1,25 @@
 # config file for inversion run
 
 # define time range of measurements
-start_date: "2020-10-01"
-end_date: "2022-03-31"
+start_date: "2021-01-01"
+end_date: "2021-02-28"
 
 output_dir: "/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/"
 
 res_list: [2]       # spatial resolution in °, eg 2 for 2x2°
-corr_list: ['with','no']   # 'with','no', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04' correlation
-
+corr_list: ['with']  # 'with','no', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04' correlation
 
 # list of measurement errors
-gosat_meas_err_list: [1,2] #,3,5,10]
-meas_err_list: [1,2] #,3,5,10]
+gosat_meas_err_list: [1] #,3,5,10]
+meas_err_list: [2] #,3,5,10]
+
 # list of footprints
 f_list: ['spec001_mr']   # 'spec001_mr' for unscaled footprints
-scaling_subdirectory: "/prep_footprints_TM5_2nee/diurnal_amplitude_weekly/"    # subdirectory in output_dir/insitu or output_dir/RemoTeCv240 directory where weekly footprint files are saved
-inversion_subdirectory: "/inversions_TM5_2nee_only_gosat/"
-# dataset used for the background
-# bg_ds: "IS"
+
+footprints_subdirectory: "/prep_footprints_TM5_2M/diurnal_amplitude_weekly/"    # subdirectory in output_dir/insitu or output_dir/RemoTeCv240 directory where weekly footprint files are saved
+inversion_subdirectory: "/inversions_2M/"
+
+# dataset used for the backgroundlew_surface
 BG: "TM5"   # "TM5" or "CAMS"
 bg_ds: "RemoTeC_2.4.1+IS-land_ocean_bc"  # 'satellite' #"RemoTeC_2.4.1+IS-land_ocean_bc" #"RemoTeC_2.4.0+IS"
 
@@ -26,24 +27,15 @@ WITH_FLAT: False # if True, runs additional inversion with flat prior
 SAVE_AK: False    # saves entire averaging kernel and posterior convariance matrix if set to True, just diagonal otherwise
 
 # TODO delete this?
-FILTER_GOSAT_MEAS: False    # set to True, if only use Gosat meas if there are more then x duing a week (not used in final inversion setup)
+FILTER_GOSAT_MEAS: False    # set to True, if only use Gosat meas if there are more then x during a week (not used in final inversion setup)
 # MIN_NUM_GOSAT_MEAS: 3
 
 SMALER_MEAS_AREA: False       # only include measurements for a smaller area (not used in final inversion setup)
 # if True define interp_region
 #interp_region: [20,48,-126,-70]       # lat_min, lat_max, lon_min, lon_max
 
-# TODO delete this?
-# if using these, have to adapt footprint scaling paths in run_inversion.py
-WITH_OFFSET: False          # add offset to inversion, for different diurnal cycle scaling approach
-WITH_GAMMA_OFFSET: False
-# x_offset: 6.e-7       # need decimal point to ensure its processed as a float
-WITH_ADDITIVE_DIURNAL: True
-f_additive_diurnal: 'spec001_mr_diurnal_amplitude'   # 'spec001_mr' for unscaled footprints
 
-VERIFICATION_SAMPLE: True
-verification_gosat: 0.05
-verification_insitu: 0.05
-verification_filename: 'verification.json'
-
-only: 'gosat'
+VERIFICATION_SAMPLE: False
+#verification_gosat: 0.05       # if VERIFICATION_SAMPLE =True, specify a file where the indizes to use for inversion are defined or define which fraction of the data to use for the verificaiton 
+#verification_insitu: 0.05
+#verification_filename: 'verification.json'

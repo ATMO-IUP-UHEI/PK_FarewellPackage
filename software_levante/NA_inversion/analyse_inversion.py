@@ -10,89 +10,90 @@ import matplotlib as mpl
 import matplotlib.dates as mdates
 from dateutil.relativedelta import relativedelta
 from utils import get_start_date_of_week, get_unique_time
+from itertools import product
+
+
+class measurement_dataset():
+    """Measurement dataset for which Flexpart was run
+
+    Args:
+        name: name of dataset
+        version: version of dataset
+        flexpart_path: Flexpart output directory
+        footprints_path: path to footprint dataset
+        num_parts: number of particles used per measurement in Flexpart
+        measured: 'co2' (e.g. insitu), 'xco2' (e.g. GOSAT)
+        height_levels: 'single point' (e.g. in-situ), 'multiple points' (e.g. TCCON), 'continuous profile' (e.g. GOSAT RemoTeC)
+        pressure_weighted: measurement weighted with pressure profile \n \t (if column_measurement==True)
+        averaging_kernel: measurement weighted with averaging kernel \n \t (if column_measurement==True)
+    """
+    
+    def __init__(
+            self, 
+            name: str, 
+            version: str, 
+            flexpart_path: str, 
+            footprints_path: str,
+            num_parts: int, 
+            measured: str,
+            measurement_error,
+            height_levels: str,
+            pressure_weighted: bool = False, 
+            averaging_kernel: bool = False
+            ):
+        
+        self.name, self.version = name, version
+        self.flexpart_path,self.footprints_path = flexpart_path,footprints_path
+        self.num_parts=num_parts
+        self.measurement_error = measurement_error
+        self.measured, self.height_levels  = measured, height_levels
+        self.pressure_weighted=pressure_weighted
+        self.averaging_kernel=averaging_kernel
+
+
 
 # postprocessing of inversion data
-def get_co2_val_from_fluxes(start_date, end_date, is_footprints_path, gosat_footprints_path, inv_flux_path,BG, bg_str, res,ref_flux_dir, s_dir, f_str):
+def get_co2_val_from_fluxes(start_date, end_date, dataset, inv_flux_path,BG, BG_molefrac_bg_str, res,ref_flux_dir, s_dir, f_str):
     ''' get co2 values from fluxes and footprints for combined GOSAT+IS inversion for fixed meas_err and land_err values, 
         using effektive footprints from f_str
         using unscaled footprints for reference fluxes
     Args:    
         start_date: start date of fluxes that are used
         end_date: end date of fluxes that are used
-        is_footprints_path: path to insitu footprints
-        gosat_footprints_path: path to gosat footprints
+        dataset: measurement dataset
         inv_flux_path: path to inversion result fluxes
-        bg_str: string defining the background, eg '{bg_str}', '395ppm' for fixed background value
+        BG_molefrac_bg_str: string defining the background, eg '{bg_str}', '395ppm' for fixed background value
         res: resolution, needed for reference fluxes
         ref_flux_dir: path to directory containing the reference fluxes
-        s_dir: oath to directory where output should be saved
+        s_dir: path to directory where output should be saved
         f_str: string defining which footprint to use
     '''
     # read footprint data
-    is_footprints=xr.open_dataset(is_footprints_path)
-    gosat_footprints=xr.open_dataset(gosat_footprints_path)
+    print(dataset.footprints_path)
+    footprints=xr.open_dataset(dataset.footprints_path)
+
     # reset pointspec dimension
-    is_footprints['pointspec']=np.arange(0,is_footprints.pointspec.size)
-    gosat_footprints['pointspec']=np.arange(0,gosat_footprints.pointspec.size)
-
-    is_cols=['release_time', 'release_lat', 'release_lon','co2_val[ppm]',f'{BG}_{bg_str}_background', f'{BG}_{bg_str}_co2', f'{BG}_{bg_str}_co2_interpolated']
-    gosat_cols=['release_time', 'release_lat', 'release_lon','xco2', 'xco2_err',f'{BG}_{bg_str}_background',f'{BG}_{bg_str}_xco2',  f'{BG}_{bg_str}_xco2_interpolated']
-    additive = True
-    if additive:
-        is_cols.append('real_co2_val[ppm]')
-        gosat_cols.append('real_xco2')
-    # get insitu measurement
-    is_data=is_footprints[is_cols]
-    # get gosat measurements
-    gosat_data=gosat_footprints[gosat_cols]
-
-    # drop time dependency for release_time in gosat data
-    gosat_data['release_time'] = xr.apply_ufunc(
-        get_unique_time,
-        gosat_data['release_time'],
-        input_core_dims=[['time']],
-        vectorize=True,
-        dask='parallelized',
-        # output_dtypes=[np.dtype('datetime64[ns]')]
-    )
-    #gosat_data=gosat_data.drop_dims('time')
+    footprints['pointspec']=np.arange(0,footprints.pointspec.size)
 
     # read flux data
     flux_data=xr.open_dataset(inv_flux_path)
     ref_RemoteC_IS_flux=xr.open_dataset(f'{ref_flux_dir}/flux_{res}x{res}_RemoTeC_2.4.1+IS_cut_weekly.nc').sel(time=slice(start_date+relativedelta(months=1), end_date+relativedelta(months=-1)))
     
+    
     # calculate co2/xco2 values, save dataframes
     # value from flux*footprint, sum    
-    is_data['prior_val']=(flux_data.TM5_prior_flux*is_footprints[f_str]).sum(dim=['time', 'latitude', 'longitude'])
-    is_data['posterior_val']=(flux_data.TM5_posterior_flux*is_footprints[f_str]).sum(dim=['time', 'latitude', 'longitude'])
-    gosat_data['prior_val']=(flux_data.TM5_prior_flux*gosat_footprints[f_str]).sum(dim=['time', 'latitude', 'longitude'])
-    gosat_data['posterior_val']=(flux_data.TM5_posterior_flux*gosat_footprints[f_str]).sum(dim=['time', 'latitude', 'longitude'])
+    footprints['prior_val']=(flux_data.TM5_prior_flux*footprints[f_str]).sum(dim=['time', 'latitude', 'longitude'])
+    footprints['posterior_val']=(flux_data.TM5_posterior_flux*footprints[f_str]).sum(dim=['time', 'latitude', 'longitude'])
+
     # from TM5-4DVar fluxes, those with unscaled fluxes
-    is_data['ref_RemoteC_IS_val']=(ref_RemoteC_IS_flux.total_flux*is_footprints.spec001_mr).sum(dim=['time', 'latitude', 'longitude'])
-    gosat_data['ref_RemoteC_IS_val']=(ref_RemoteC_IS_flux.total_flux*gosat_footprints.spec001_mr).sum(dim=['time', 'latitude', 'longitude'])
+    footprints['ref_RemoteC_IS_val']=(ref_RemoteC_IS_flux.total_flux*footprints.spec001_mr).sum(dim=['time', 'latitude', 'longitude'])
     
-    #  calculate differnece to TM5-4DVar values from molefraction fields
-    is_data[f'{BG}_molefrac_diff']=is_data[f'{BG}_{bg_str}_co2']-is_data['co2_val[ppm]']
-    is_data[f'{BG}_molefrac_diff_interpolated']=is_data[f'{BG}_{bg_str}_co2_interpolated']-is_data['co2_val[ppm]']
-    if additive:
-        is_data[f'{BG}_molefrac_diff']=is_data[f'{BG}_{bg_str}_co2']-is_data['real_co2_val[ppm]']
-        is_data[f'{BG}_molefrac_diff_interpolated']=is_data[f'{BG}_{bg_str}_co2_interpolated']-is_data['real_co2_val[ppm]']
-    is_data['prior_diff']=is_data['prior_val']-is_data['co2_val[ppm]']+is_data[f'{BG}_{bg_str}_background']
-    is_data['posterior_diff']=is_data['posterior_val']-is_data['co2_val[ppm]']+is_data[f'{BG}_{bg_str}_background']
-    is_data['ref_RemoteC_IS_diff']=is_data['ref_RemoteC_IS_val']-is_data['co2_val[ppm]']+is_data[f'{BG}_{bg_str}_background']
-    
-    gosat_data[f'{BG}_molefrac_diff']=gosat_data[f'{BG}_{bg_str}_xco2']-gosat_data['xco2']
-    gosat_data[f'{BG}_molefrac_diff_interpolated']=gosat_data[f'{BG}_{bg_str}_xco2_interpolated']-gosat_data['xco2']
-    if additive:
-        gosat_data[f'{BG}_molefrac_diff']=gosat_data[f'{BG}_{bg_str}_xco2']-gosat_data['real_xco2']
-        gosat_data[f'{BG}_molefrac_diff_interpolated']=gosat_data[f'{BG}_{bg_str}_xco2_interpolated']-gosat_data['real_xco2']
-    gosat_data['prior_diff']=gosat_data['prior_val']-gosat_data['xco2']+gosat_data[f'{BG}_{bg_str}_background']
-    gosat_data['posterior_diff']=gosat_data['posterior_val']-gosat_data['xco2']+gosat_data[f'{BG}_{bg_str}_background']
-    gosat_data['ref_RemoteC_IS_diff']=gosat_data['ref_RemoteC_IS_val']-gosat_data['xco2']+gosat_data[f'{BG}_{bg_str}_background']
-    
+    footprints['prior_diff']=footprints['prior_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
+    footprints['posterior_diff']=footprints['posterior_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
+    footprints['ref_RemoteC_IS_diff']=footprints['ref_RemoteC_IS_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
+    footprints=footprints.drop_vars(f_str)
     # save dataframes
-    gosat_data.to_netcdf(f'{s_dir}/gosat_data_{res}x{res}_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc')
-    is_data.to_netcdf(f'{s_dir}/insitu_data_{res}x{res}_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc')
+    footprints.to_netcdf(f'{s_dir}/{dataset.name}_data_{res}x{res}_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{BG_molefrac_bg_str}_bg.nc')
     print(f'saved files to {s_dir}')
 
 def get_high_res_TM5_co2(month_date, prior_flux_path, f_dir, s_dir, cols, col_name='prior_val'):
@@ -390,67 +391,6 @@ def plot_inner_2x2_region_fluxes(data_dir,ref_flux_dir, gosat_err_val, meas_err_
     plt.close()
     return
 
-def create_east_west_US_mask(ref_path, west_mask_path, east_mask_path):
-    ''' Create 2x2 mask for eastern and western US
-    Args:
-        ref_path: path to cut 2x2 dataset, to get required latitude, longitude values (TODO - better way)
-        west_mask_path, east_mask_path: paths to where masks should be saved
-    Returns: nothing, saves masks as .nc files'''
-    # temporary variable, just for plotting
-    ref_weekly=xr.open_dataset(ref_path)
-    ref_weekly['temp']=(('latitude','longitude'),np.ones((ref_weekly.latitude.size, ref_weekly.longitude.size)))
-    west_mask=np.abs(ref_weekly.CO2_flux_nee.sel(latitude=slice(20,44), longitude=slice(-123,-98)).sel(time='2010-7-1', method='nearest'))!=0
-
-    # manually change some cells
-    west_mask.loc[dict(latitude=33, longitude=-121)] = False 
-    west_mask.loc[dict(latitude=33, longitude=-123)] = False 
-    west_mask.loc[dict(latitude=35, longitude=-123)] = False 
-    west_mask.loc[dict(latitude=31, longitude=-119)] = False 
-    west_mask.loc[dict(latitude=29, longitude=-119)] = False 
-    west_mask.loc[dict(latitude=29, longitude=-117)] = False 
-    west_mask.loc[dict(latitude=27, longitude=-117)] = False 
-    west_mask.loc[dict(latitude=27, longitude=-115)] = False 
-    west_mask.loc[dict(latitude=25, longitude=-113)] = False 
-    west_mask.loc[dict(latitude=23, longitude=-113)] = False 
-    # west_mask.loc[dict(latitude=23, longitude=-111)] = False 
-    west_mask.loc[dict(latitude=21, longitude=-109)] = False 
-    west_mask.loc[dict(latitude=21, longitude=-107)] = False 
-    # save 
-    west_mask.to_netcdf(west_mask_path)
-    
-    # same for east
-    east_mask=np.abs(ref_weekly.CO2_flux_nee.sel(latitude=slice(32,48), longitude=slice(-98,-73)).sel(time='2010-7-1', method='nearest'))!=0
-    east_mask.loc[dict(latitude=39, longitude=-73)] = False 
-    east_mask.loc[dict(latitude=37, longitude=-73)] = False 
-    east_mask.loc[dict(latitude=35, longitude=-75)] = False 
-    east_mask.loc[dict(latitude=33, longitude=-75)] = False 
-    east_mask.loc[dict(latitude=33, longitude=-77)] = False 
-    east_mask.to_netcdf(east_mask_path)
-    return
-
-def mask_to_polygon(mask, region_name):
-    polygons = []
-    for lat in mask.latitude.values:
-        for lon in mask.longitude.values:
-            if mask.sel(latitude=lat, longitude=lon).item():
-                polygons.append(box(lon - 1, lat - 1, lon + 1, lat + 1))
-    merged = geopandas.GeoSeries(polygons).union_all()  # dissolve adjacent boxes
-    return geopandas.GeoDataFrame({'region': [region_name], 'geometry': [merged]}, crs="EPSG:4326")
-
-def create_east_west_US_gdf(west_mask_path, east_mask_path, spath):
-    ''' Create geodataframe containing the east and western US masks'''
-    # read mask from file
-    west_mask= xr.open_dataarray(west_mask_path)
-    east_mask= xr.open_dataarray(east_mask_path)
-    # Create GeoDataFrames for each region
-    west_gdf = mask_to_polygon(west_mask, "west")
-    east_gdf = mask_to_polygon(east_mask, "east")
-
-    # Combine and save
-    combined_gdf = geopandas.GeoDataFrame(pd.concat([west_gdf, east_gdf], ignore_index=True), crs="EPSG:4326")
-    combined_gdf.to_file(spath, driver="GeoJSON")
-    return
-
 
 # main
 if __name__ == "__main__":
@@ -467,62 +407,97 @@ if __name__ == "__main__":
     
     start_date = dt.date(2020,10,1)
     end_date = dt.date(2022,3,31)
-    BG="TM5" # CAMS
+    
+    # parent directory, in which all Flexpart runs, measurement information is collected
+    directory='/work/bb1170/RUN/b383736/data/Flexpart_2021/'
+    # Background model:
+    BG='TM5'   # 'TM5' or 'CAMS' molefractions with selected dataset as subdirectory
     #BG='CAMS'
-    bg_str = 'RemoTeC_2.4.1+IS-land_ocean_bc' #'RemoTeC_2.4.0+IS' 'satellite'
-    #bg_str = 'satellite'
+    # directory to molefraction concentrations
+    if BG=='TM5':
+        BG_molefrac_dir=directory+'/TM54DVar/TM5_molfractions/'
+        BG_molefrac_bg_str = 'RemoTeC_2.4.1+IS-land_ocean_bc'   # specifying str of folder to use
+        
+    elif BG=='CAMS':
+        BG_molefrac_dir='/work/bb1170/RUN/b383736/data/CAMS/2020-2022/'
+        BG_molefrac_bg_str = 'satellite'        # specifying str of folder to use
+
+    # path to Flexpart directory with subdirectories for datasets
+    flex_dir=directory+'/Flexpart/' 
     # footprint variable name
-    f_str='spec001_mr'    # 'spec001_mr', 'spec001_mr_scaled'
-    scaling_subdirectory= "prep_footprints_TM5_05nee/diurnal_amplitude_weekly/" 
-    inversions_subdirectory="inversions_TM5_05nee"
+    f_str='spec001_mr_scaled'    # 'spec001_mr', 'spec001_mr_scaled'
+    footprint_subdirectory= "prep_footprints_TM5_3_years/scaled_weekly/" 
+    inversion_subdirectory="inversions_new/TM5_diurnal/scaled/"
     # with/without correlation
-    corr_str_list=['no', 'with']          # 'no', 'with', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04'
+    corr_str_list=['with'] #['no', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04']          # 'no', 'with', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04'
     # spatial resolution
     res=2
     
     # list of errors
-    gosat_err_list=[1,2]#,3,5,10]           # [0.25,0.5, 0.8,1, 1.2, 1.5,2,2.5,3]
-    is_err_list=[1,2]#,3,5,10]             # [0.5,1,2,4,6,8,10]
+    gosat_err_list=[2]          # [0.25,0.5, 0.8,1, 1.2, 1.5,2,2.5,3]
+    is_err_list=[3,5]             # [0.5,1,2,4,6,8,10]
     # selected error values
-    gosat_err_val_sel=1
-    is_err_val_sel=2
-    
-    # path to parent directory
-    parent_data_dir='/work/bb1170/RUN/b383736/data/Flexpart_2021/Flexpart/' 
-    ref_flux_dir = '/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/TM54DVar_fluxes/'   # path to TM5-4DVar flux directory
+    gosat_err_val_sel=2
+    is_err_val_sel=3
 
-    if GET_EAST_WEST_MASKS:
-        ref_path='/work/bb1170/RUN/b383736/data/Flexpart_2021/TM54DVar/TM54DVar_fluxes/flux_2x2_RemoTeC_2.4.1+IS_cut_weekly.nc'
-        west_mask_path=f'{parent_data_dir}/{inversions_subdirectory}/2x2/west_mask.nc'
-        east_mask_path= f'{parent_data_dir}/{inversions_subdirectory}/2x2/east_mask.nc'
-        gdf_spath=f"{parent_data_dir}/{inversions_subdirectory}/2x2/east_west_region_boundaries.geojson"
-        create_east_west_US_mask(ref_path, west_mask_path, east_mask_path)
-        create_east_west_US_gdf(west_mask_path, east_mask_path, gdf_spath)
     
+    #path to reference fluxes (TM5-4DVar flux directory)
+    ref_flux_dir = directory+'/TM54DVar/TM54DVar_fluxes_3years/'   
+
+    # measurement datasets:
+    gosat=measurement_dataset(
+        name = 'gosat', 
+        version = '2.4.1', 
+        flexpart_path = flex_dir+'/'+'RemoTeCv240',
+        footprints_path = flex_dir+'/'+'RemoTeCv240'+'/'+footprint_subdirectory+f'/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc',
+        num_parts = 40000,
+        measured = 'xco2',
+        measurement_error=gosat_err_list,
+        height_levels = 'continuous profile',
+        pressure_weighted = True,
+        averaging_kernel = True)
+
+    insitu=measurement_dataset(
+        name='insitu',
+        version='GLOBALVIEWplus_v10.1',
+        flexpart_path=flex_dir+'insitu',
+        footprints_path = flex_dir+'/'+'insitu'+'/'+footprint_subdirectory+f'/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc',
+        num_parts=40000,
+        measured = 'co2', # old: 'co2_val[ppm]',
+        measurement_error=is_err_list,
+        height_levels = 'single point')
+
+    tccon=measurement_dataset(
+        name='TCCON',
+        version='',
+        flexpart_path=flex_dir+'TCCON',
+        footprints_path = flex_dir+'/'+'TCCON'+'/'+footprint_subdirectory+f'/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc',
+        num_parts=40000,
+        measured = 'xco2',
+        height_levels = 'multiple points',
+        measurement_error='',
+        pressure_weighted=True,
+        averaging_kernel=True)
+    
+    datasets_in_inversion=[gosat,insitu]
+    
+    measurement_errors=[]
+    for i, dataset in enumerate(datasets_in_inversion):
+        measurement_errors.append(dataset.measurement_error)
+    measurement_errors=list(product(*measurement_errors))
+
     if GET_CO2_VALS:
-        # path to scaled footprints wir {res}x{res}_weekly resolution
-        # TODO
-        # is_footprints_path = f'{parent_data_dir}Flexpart/insitu/prep_footprints/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
-        # gosat_footprints_path = f'{parent_data_dir}Flexpart/RemoTeCv240/prep_footprints/scaled_weekly/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{res}x{res}_weekly.nc'
-        
-        is_footprints_path = f'{parent_data_dir}/insitu/{scaling_subdirectory}/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc'
-        gosat_footprints_path = f'{parent_data_dir}/RemoTeCv240/{scaling_subdirectory}/high_res_scaled_footprints_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_2x2_weekly.nc'
-        
-        for corr_str in corr_str_list:     
-            # fixed gosat_err_val, variable meas_err_val
-            gosat_err_val=gosat_err_val_sel
-            for meas_err_val in is_err_list: 
-                # calculate xco2/co2 values
-                flux_dir=f'{parent_data_dir}/{inversions_subdirectory}/{res}x{res}/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
-                flux_path=f'{flux_dir}{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc'
-                get_co2_val_from_fluxes(start_date, end_date, is_footprints_path, gosat_footprints_path, flux_path,BG, bg_str, res,ref_flux_dir, flux_dir, f_str)
-            
-            meas_err_val=is_err_val_sel
-            for gosat_err_val in gosat_err_list:        # 
-                # calculate xco2/co2 values
-                flux_dir=f'{parent_data_dir}/{inversions_subdirectory}/{res}x{res}/{corr_str}_correlation/footprint_{f_str}/{gosat_err_val}ppm_gosat_meas_err/{meas_err_val}ppm_insitu_meas_err/'
-                flux_path=f'{flux_dir}{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{bg_str}_bg.nc'
-                get_co2_val_from_fluxes(start_date, end_date, is_footprints_path, gosat_footprints_path, flux_path,BG, bg_str, res,ref_flux_dir, flux_dir, f_str)
+        for dataset in [tccon,insitu, gosat]:
+            print(dataset.name)
+            for corr_str in corr_str_list:
+                print(corr_str)
+                for measurement_error in measurement_errors:
+                    # create directory in which footprints will be saved
+                    flux_dir=f'{flex_dir+inversion_subdirectory}/{res}x{res}/{corr_str}_correlation/footprint_{f_str}/'
+                    for i, inv_dataset in enumerate(datasets_in_inversion):
+                        flux_dir+=f'{measurement_error[i]}ppm_{inv_dataset.name}_meas_err/'
+                    flux_path=f'{flux_dir}{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{BG_molefrac_bg_str}_bg.nc'
+                    get_co2_val_from_fluxes(start_date, end_date, dataset, flux_path,BG, BG_molefrac_bg_str, res,ref_flux_dir, flux_dir, f_str)
 
     if GET_HIGH_RES_PRIOR_CO2:
         # get high resolution prior
