@@ -10,6 +10,6 @@
 #SBATCH --error=slurm/analyse_inversion.e%j     # File name for standard error output
 
 eval "$(conda shell.bash hook)"     # activate conda env
-conda activate pyinverse
+conda activate inversion
 
 python -u analyse_inversion.py

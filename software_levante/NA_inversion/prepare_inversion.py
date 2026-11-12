@@ -498,12 +498,42 @@ def prep_TM5_4DVar_flux(flux_path, region, res):
     # adjust units for flux components
     cols=['CO2_flux_nee','CO2_flux_fire','CO2_flux_oce','CO2_flux_fos','total_flux']
     for col in cols:
-        data[col]=(data[col]*44/12*1e-3/(24*60*60)).assign_attrs(units='kgCO2/(m^2 s)')
+        data[col]=(data[col]*44/12*1e-3/(24*60*60)).assign_attrs(units='kgCO2/(m^2 s)')     # 44/12 *1e-3 gC-->kgCO2 | 24*60*60 --> day --> s
 
     # area weighted mean over coarser grid
     data[cols]=data[cols]*data.grid_cell_area
     data=data.coarsen(latitude=res, longitude=res).sum().squeeze()
     data[cols]=(data[cols]/data.grid_cell_area)
+    for col in cols:
+        data[col]=data[col].assign_attrs(units='kgCO2/(m^2 s)')
+    # save dataset
+    spath=f"{flux_path.replace('_1x1_', f'_{res}x{res}_')[:-3]}_cut.nc"
+    print(f'save preprocessed TM5-4DVar fluxes to {spath}')
+    data.to_netcdf(spath)
+    return
+
+def prep_GCP_flux(flux_path, region, res):
+    ''' Cut TM5-4DVar data to desired region, get total flux, adjusts flux units as needed for the inversion and calculate average flux for a coarser spatial grid
+    Args:
+        flux_path: path to where flux data is saved
+        res: desired resolution, e.g. 2 for 2x2 spatial grid
+    Returns:
+        saves netcdf file to flux_path with 'flux_1x1'  replaced by ne spatial grid resoltion 'flux_2x2'
+    '''
+    data=xr.open_dataset(flux_path)
+    # cut flexpart region
+    data=data.sel(latitude=slice(region[0],region[1]),longitude=slice(region[2],region[3]))
+    # get total flux
+    data['total_flux']=(data.land_flux_only_fossil_cement_adjusted+data.ocean_flux_NOT_adjusted+data.fossil_fuel_emissions)
+    
+    # adjust units for flux components
+    cols=['total_flux','land_flux_only_fossil_cement_adjusted','ocean_flux_NOT_adjusted','prior_flux_land','prior_flux_ocean','fossil_fuel_emissions','river_adjustment_land','river_adjustment_land_scaled','river_adjustment_ocean']
+    for col in cols:
+        data[col]=(data[col]*44/12*1e12/(365*24*60*60)).assign_attrs(units='kgCO2/(m^2 s)')     # 44/12 *1e-3 PgC-->kgCO2 | 365*24*60*60 --> year --> s
+    # area weighted mean over coarser grid
+    data[cols]=data[cols]*data.cell_area
+    data=data.coarsen(latitude=res, longitude=res).sum().squeeze()
+    data[cols]=(data[cols]/data.cell_area)
     for col in cols:
         data[col]=data[col].assign_attrs(units='kgCO2/(m^2 s)')
     # save dataset
@@ -523,13 +553,13 @@ def get_weekly_TM5_4DVarflux(ds_path):
     # read TM5-4DVar flux
     ds=xr.open_dataset(ds_path)
     # timerange of the TM5-4DVar dataset
-    TM5_start_date=dt.date(2009,1,1)
-    TM5_end_date=dt.date(2023,1,8)
+    start_date=min(ds.time.dt.date.values) 
+    end_date=max(ds.time.dt.date.values) 
     # Convert monthly data to daily by forward-filling values
-    ds = ds.reindex(time=pd.date_range(TM5_start_date,TM5_end_date), method='ffill')
+    ds = ds.reindex(time=pd.date_range(start_date,end_date), method='ffill')
 
     # Create the 7-day period bins
-    period_bins = pd.date_range(start=get_start_date_of_week(TM5_start_date), end=get_start_date_of_week(TM5_end_date)+dt.timedelta(days=7), freq="7D")
+    period_bins = pd.date_range(start=get_start_date_of_week(start_date), end=get_start_date_of_week(end_date)+dt.timedelta(days=7), freq="7D")
     # Cut the time array into the defined 7-day bins
     time_bins = pd.cut(ds.time, bins=period_bins, right=False, labels=period_bins[:-1],include_lowest=True)
     # Assign the new time bins as coordinates
@@ -556,7 +586,7 @@ def get_weekly_TM5_4DVarflux(ds_path):
 
 # main
 if __name__ == "__main__":  
-    start_date, end_date =dt.date(2020,10,1), dt.date(2022,3,31)    # time period of measurements
+    start_date, end_date =dt.date(2021,10,1), dt.date(2022,3,31)    # time period of measurements
     # data paths
     # parent directory, in which all Flexpart runs, measurement information is collected
     directory='/work/bb1170/RUN/b383736/data/Flexpart_2021/'
@@ -575,8 +605,18 @@ if __name__ == "__main__":
         BG_molefrac_bg_str = 'satellite'        # specifying str of folder to use
 
     # reference fluxes of TM5-4DVar and prior flux
-    TM5flux_dir=directory+'/TM54DVar/TM54DVar_fluxes/'
+    #reference_flux='TM5'
+    reference_flux='GCP'
+    if reference_flux=='TM5':
+        reference_flux_dir=directory+'/TM54DVar/TM54DVar_fluxes/'
+        reference_flux_file_name='flux_1x1_RemoTeC_2.4.1+IS.nc'
+    if reference_flux=='GCP':
+        reference_flux_dir='/work/bb1170/RUN/b383736/data/GCP/'
+        reference_flux_file_name='GCP2024_inversions_1x1_version1_2_20241021.nc'
+
     TM5_str = 'RemoTeC_2.4.1+IS'         # TM5-4DVar dataset, chose from ['RemoTeC_2.4.0+IS', 'ACOS+IS','IS', 'prior']
+    prior_flux_dir=directory+'/TM54DVar/TM54DVar_fluxes/'
+    prior_flux_file_name='flux_1x1_prior.nc'
 
     prior_diurnal_path=directory+'/TM54DVar/high_res_total_scaling_RemoTeC+IS_scaling.nc' # path to diurnal offset or diurnal scaling data
     region=[12,56,-134,-62]   
@@ -636,7 +676,7 @@ if __name__ == "__main__":
 
     datasets=[gosat,tccon]
     # select funtions to run
-    PREP_TM5_4DVAR_REF_FLUXES=False # calculate weekly prior fluxes, cut them to inversion region and adjust resolution to the one needed in inversion
+    PREP_TM5_4DVAR_REF_FLUXES=True # calculate weekly prior fluxes, cut them to inversion region and adjust resolution to the one needed in inversion
     CALCULATE_LAST_POSITIONS=False   # sometimes this needs more computational memory than available on shared node, so this can be run seprately from the processing on a compute node   
     PROCESS_FLEX_RUNS=False     # calculates last positions if needed, background concentrations, interpolated values from the background dataset, and remaining fraction of particles after the flexpart run
       
@@ -646,7 +686,7 @@ if __name__ == "__main__":
     GET_WEEKLY_NO_SCALING=False         # use if no scaling should be applied to the footprints, adapt path in COARSEN_HIGH_RES_FOOTPRINT in that case
     GET_WEEKLY_ADDITIVE_DIURNAL_FOOTPRINTS=False     # use if additive diurnal cycle should be substracted
 
-    COARSEN_HIGH_RES_FOOTPRINT=True     #False     # if True, adapt coarsen_footprint_in_folder
+    COARSEN_HIGH_RES_FOOTPRINT=False     #False     # if True, adapt coarsen_footprint_in_folder
     coarsen_footprint_in_folder='scaled_weekly'
 
     Delete_High_Res_Footprints = False  # delete hourly high resolution footprints to reduce storage space
@@ -654,13 +694,21 @@ if __name__ == "__main__":
     if PREP_TM5_4DVAR_REF_FLUXES:
         # cuts specified region, coarsens to desired resolution, saves weekly files
         # for dataset selected for background calculation and prior
-        for temp in [TM5_str, 'prior']:
-            flux_path=f'{TM5flux_dir}/flux_1x1_{temp}.nc'
-            # cut fluxes to desired region for 1x1 and res resolution
-            for res in [1]+resolution: 
+        flux_path=f'{reference_flux_dir}/{reference_flux_file_name}'
+        # cut fluxes to desired region for 1x1 and res resolution
+        for res in [1]+resolution: 
+            if reference_flux=='TM5':
                 prep_TM5_4DVar_flux(flux_path, region, res)
-                # get weekly fluxes for resxres 
-                get_weekly_TM5_4DVarflux(f"{flux_path.replace('_1x1_', f'_{res}x{res}_')[:-3]}_cut.nc")
+            if reference_flux=='GCP':
+                prep_GCP_flux(flux_path,region,res)
+            # get weekly fluxes for resxres 
+            get_weekly_TM5_4DVarflux(f"{flux_path.replace('_1x1_', f'_{res}x{res}_')[:-3]}_cut.nc")
+        flux_path=f'{prior_flux_dir}/{prior_flux_file_name}'
+        # cut fluxes to desired region for 1x1 and res resolution
+        for res in [1]+resolution: 
+            prep_TM5_4DVar_flux(flux_path, region, res)
+            # get weekly fluxes for resxres 
+            get_weekly_TM5_4DVarflux(f"{flux_path.replace('_1x1_', f'_{res}x{res}_')[:-3]}_cut.nc")
      
     if CALCULATE_LAST_POSITIONS:
         for dataset in datasets:

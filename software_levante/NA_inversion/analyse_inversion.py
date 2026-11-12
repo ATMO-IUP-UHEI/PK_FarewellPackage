@@ -53,7 +53,7 @@ class measurement_dataset():
 
 
 # postprocessing of inversion data
-def get_co2_val_from_fluxes(start_date, end_date, dataset, inv_flux_path,BG, BG_molefrac_bg_str, res,ref_flux_dir, s_dir, f_str):
+def get_co2_val_from_fluxes(start_date, end_date, dataset, inv_flux_path,BG, BG_molefrac_bg_str, res,ref_flux_dirs, s_dir, f_str):
     ''' get co2 values from fluxes and footprints for combined GOSAT+IS inversion for fixed meas_err and land_err values, 
         using effektive footprints from f_str
         using unscaled footprints for reference fluxes
@@ -77,8 +77,8 @@ def get_co2_val_from_fluxes(start_date, end_date, dataset, inv_flux_path,BG, BG_
 
     # read flux data
     flux_data=xr.open_dataset(inv_flux_path)
-    ref_RemoteC_IS_flux=xr.open_dataset(f'{ref_flux_dir}/flux_{res}x{res}_RemoTeC_2.4.1+IS_cut_weekly.nc').sel(time=slice(start_date+relativedelta(months=1), end_date+relativedelta(months=-1)))
-    
+    ref_RemoteC_IS_flux=xr.open_dataset(f'{ref_flux_dirs['TM5-4DVar']}/flux_{res}x{res}_RemoTeC_2.4.1+IS_cut_weekly.nc').sel(time=slice(start_date+relativedelta(months=1), end_date+relativedelta(months=-1)))
+    ref_GCP=xr.open_dataset(f'{ref_flux_dirs['GCP']}/GCP2024_inversions_2x2_version1_2_20241021_cut_weekly.nc').sel(time=slice(start_date+relativedelta(months=1), end_date+relativedelta(months=-1)))
     
     # calculate co2/xco2 values, save dataframes
     # value from flux*footprint, sum    
@@ -87,10 +87,27 @@ def get_co2_val_from_fluxes(start_date, end_date, dataset, inv_flux_path,BG, BG_
 
     # from TM5-4DVar fluxes, those with unscaled fluxes
     footprints['ref_RemoteC_IS_val']=(ref_RemoteC_IS_flux.total_flux*footprints.spec001_mr).sum(dim=['time', 'latitude', 'longitude'])
-    
+    for ensemble in ref_GCP.ensemble_member.values:
+        temp=ref_GCP.sel(ensemble_member=ensemble)
+        letters=temp.ensemble_member_name.values[0]
+        name=''
+        for letter in letters:
+            name=name+letter
+        footprints[f'ref_{name}_val']=(temp.total_flux*footprints.spec001_mr).sum(dim=['time', 'latitude', 'longitude'])
+
     footprints['prior_diff']=footprints['prior_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
     footprints['posterior_diff']=footprints['posterior_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
     footprints['ref_RemoteC_IS_diff']=footprints['ref_RemoteC_IS_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
+    for ensemble in ref_GCP.ensemble_member.values:
+        temp=ref_GCP.sel(ensemble_member=ensemble)
+        letters=temp.ensemble_member_name.values[0]
+        name=''
+        for letter in letters:
+            name=name+letter
+        footprints[f'ref_{name}_diff']=footprints[f'ref_{name}_val']-footprints[dataset.measured]+footprints[f'{BG}_{BG_molefrac_bg_str}_background']
+
+    
+    
     footprints=footprints.drop_vars(f_str)
     # save dataframes
     footprints.to_netcdf(f'{s_dir}/{dataset.name}_data_{res}x{res}_{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{BG_molefrac_bg_str}_bg.nc')
@@ -405,8 +422,8 @@ if __name__ == "__main__":
     PLOT_INNER_2X2_FLUXES=False     # plot fluxes for 2x2 inversion, inner domain
     PLOT_4x4_FLUX_MAP=False     # plot fluxes for 4x4 inversion
     
-    start_date = dt.date(2020,10,1)
-    end_date = dt.date(2022,3,31)
+    start_date = dt.date(2019,10,1)
+    end_date = dt.date(2023,3,31)
     
     # parent directory, in which all Flexpart runs, measurement information is collected
     directory='/work/bb1170/RUN/b383736/data/Flexpart_2021/'
@@ -425,9 +442,9 @@ if __name__ == "__main__":
     # path to Flexpart directory with subdirectories for datasets
     flex_dir=directory+'/Flexpart/' 
     # footprint variable name
-    f_str='spec001_mr_scaled'    # 'spec001_mr', 'spec001_mr_scaled'
-    footprint_subdirectory= "prep_footprints_TM5_3_years/scaled_weekly/" 
-    inversion_subdirectory="inversions_new/TM5_diurnal/scaled/"
+    f_str='spec001_mr'    # 'spec001_mr', 'spec001_mr_scaled'
+    footprint_subdirectory= "prep_footprints_TM5_3_years_flexpart_region/diurnal_amplitude_weekly/" 
+    inversion_subdirectory="inversions_new/TM5_3_years"
     # with/without correlation
     corr_str_list=['with'] #['no', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04']          # 'no', 'with', 'temporal', 'spatial', 'temporal_1M', 'with_1M', 'with_e04'
     # spatial resolution
@@ -435,14 +452,16 @@ if __name__ == "__main__":
     
     # list of errors
     gosat_err_list=[2]          # [0.25,0.5, 0.8,1, 1.2, 1.5,2,2.5,3]
-    is_err_list=[3,5]             # [0.5,1,2,4,6,8,10]
+    is_err_list=[3]             # [0.5,1,2,4,6,8,10]
     # selected error values
     gosat_err_val_sel=2
     is_err_val_sel=3
 
     
     #path to reference fluxes (TM5-4DVar flux directory)
-    ref_flux_dir = directory+'/TM54DVar/TM54DVar_fluxes_3years/'   
+    ref_flux_dirs = {}
+    ref_flux_dirs['TM5-4DVar'] = directory+'/TM54DVar/TM54DVar_fluxes_3years/'   
+    ref_flux_dirs['GCP'] = '/work/bb1170/RUN/b383736/data/GCP/'
 
     # measurement datasets:
     gosat=measurement_dataset(
@@ -497,7 +516,7 @@ if __name__ == "__main__":
                     for i, inv_dataset in enumerate(datasets_in_inversion):
                         flux_dir+=f'{measurement_error[i]}ppm_{inv_dataset.name}_meas_err/'
                     flux_path=f'{flux_dir}{start_date.strftime("%Y%m%d")}-{end_date.strftime("%Y%m%d")}_{BG_molefrac_bg_str}_bg.nc'
-                    get_co2_val_from_fluxes(start_date, end_date, dataset, flux_path,BG, BG_molefrac_bg_str, res,ref_flux_dir, flux_dir, f_str)
+                    get_co2_val_from_fluxes(start_date, end_date, dataset, flux_path,BG, BG_molefrac_bg_str, res,ref_flux_dirs, flux_dir, f_str)
 
     if GET_HIGH_RES_PRIOR_CO2:
         # get high resolution prior

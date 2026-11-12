@@ -8,11 +8,10 @@ import numpy as np
 import argparse
 from pyinverse.loss import Bayesian
 from pyinverse.solver import BayesianAnalytical
+from pyinverse.solver import BayesianAnalytical_sparse
+
 from scipy import sparse
 from scipy.spatial.distance import pdist, squareform
-import sys
-#sys.path.append("/work/bb1170/RUN/b383736/software/pyinverse/pyinverse/src/pyinverse/")
-#from solver import BayesianAnalytical
 
 from utils import get_start_date_of_week, haversine, get_unique_time
 import yaml
@@ -22,7 +21,6 @@ import random
 import matplotlib.pyplot as plt
 import time
 from itertools import product
-
 
 # get measurements
 def get_gosat_measurement_array(start_date, end_date, data_dir,BG="TM5", bg_ds='RemoTeC_2.4.0+IS'):
@@ -487,26 +485,47 @@ def run_inv(TM5_4DVar_prior, prior_covariance, measurements,measurement_covarian
         K=footprint[footprint_col_name].values,
     )
     print('calculated Loss')
-    TM5_solver = BayesianAnalytical(TM5_loss)
+    if False:           # for sparse calculations
+        TM5_solver = BayesianAnalytical_sparse(TM5_loss)
+    else:               # for normal calculations
+        TM5_solver = BayesianAnalytical(TM5_loss)          
     print(prior_covariance.diagonal().shape)
     local_time = time.localtime()
     print("Aktuelle Uhrzeit:", time.strftime("%d-%H:%M:%S", local_time))
-    # add data to ds
-    ds=xr.Dataset(data_vars=dict(
-            TM5_prior_flux=(["grid_box"], TM5_4DVar_prior,{"units": "kgCO2/(m^2 s)"}),
-            prior_uncertainty=(["grid_box"], np.sqrt(prior_covariance.diagonal()),{"units": "kgCO2/(m^2 s)"}),
-            # TM5-4DVar prior
-            TM5_posterior_flux=(["grid_box"], TM5_solver.x_posterior,{"units": "kgCO2/(m^2 s)"}),
-            TM5_posterior_std=(["grid_box"], TM5_solver.std_posterior,{"units": "kgCO2/(m^2 s)"}),
-            TM5_averaging_kernel_diag=(["grid_box"], TM5_solver.averaging_kernel.diagonal(),{"units": "kgCO2/(m^2 s)"}),
-            # measurements
-            meas=(['meas_num'], measurements, {"units": "ppm"}),
-            meas_cov=(['meas_num'], measurement_covariance, {"units": "ppm^2"}),
-        ),
-        coords=dict(
-            grid_box=footprint.grid_box,
-            meas_num=np.arange(0,measurements.size,step=1),
-        ))
+    if False:           # for sparse calculations
+        # add data to ds
+        ds=xr.Dataset(data_vars=dict(
+                TM5_prior_flux=(["grid_box"], TM5_4DVar_prior,{"units": "kgCO2/(m^2 s)"}),
+                prior_uncertainty=(["grid_box"], np.sqrt(prior_covariance.diagonal()),{"units": "kgCO2/(m^2 s)"}),
+                # TM5-4DVar prior
+                TM5_posterior_flux=(["grid_box"], TM5_solver.x_posterior,{"units": "kgCO2/(m^2 s)"}),
+                TM5_posterior_std=(["grid_box"], TM5_solver.std_posterior,{"units": "kgCO2/(m^2 s)"}),
+                TM5_averaging_kernel_diag=(["grid_box"], TM5_solver.averaging_kernel_diagonal,{"units": "kgCO2/(m^2 s)"}),
+                # measurements
+                meas=(['meas_num'], measurements, {"units": "ppm"}),
+                meas_cov=(['meas_num'], measurement_covariance, {"units": "ppm^2"}),
+            ),
+            coords=dict(
+                grid_box=footprint.grid_box,
+                meas_num=np.arange(0,measurements.size,step=1),
+            ))
+    else:           # for normal calculations
+        # add data to ds
+        ds=xr.Dataset(data_vars=dict(
+                TM5_prior_flux=(["grid_box"], TM5_4DVar_prior,{"units": "kgCO2/(m^2 s)"}),
+                prior_uncertainty=(["grid_box"], np.sqrt(prior_covariance.diagonal()),{"units": "kgCO2/(m^2 s)"}),
+                # TM5-4DVar prior
+                TM5_posterior_flux=(["grid_box"], TM5_solver.x_posterior,{"units": "kgCO2/(m^2 s)"}),
+                TM5_posterior_std=(["grid_box"], TM5_solver.std_posterior,{"units": "kgCO2/(m^2 s)"}),
+                TM5_averaging_kernel_diag=(["grid_box"], TM5_solver.averaging_kernel.diagonal(),{"units": "kgCO2/(m^2 s)"}),
+                # measurements
+                meas=(['meas_num'], measurements, {"units": "ppm"}),
+                meas_cov=(['meas_num'], measurement_covariance, {"units": "ppm^2"}),
+            ),
+            coords=dict(
+                grid_box=footprint.grid_box,
+                meas_num=np.arange(0,measurements.size,step=1),
+            ))
     local_time = time.localtime()
     print("Aktuelle Uhrzeit:", time.strftime("%d-%H:%M:%S", local_time))
     ds=ds.unstack(dim='grid_box')
